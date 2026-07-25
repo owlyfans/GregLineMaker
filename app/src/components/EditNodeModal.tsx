@@ -13,11 +13,15 @@ const TIERS = ["", ...TIER_ORDER];
 
 interface EditNodeModalProps {
   data: ChainNodeData;
+  /** The attached recipe's own minimum tier, if `data` is a machine node with a recipe - a machine
+   * below this can't actually run the recipe, so those tiers are shown (for ladder context) but
+   * disabled rather than omitted. */
+  minTier?: string;
   onClose: () => void;
   onSave: (patch: Partial<ChainNodeData>) => void;
 }
 
-export function EditNodeModal({ data, onClose, onSave }: EditNodeModalProps) {
+export function EditNodeModal({ data, minTier, onClose, onSave }: EditNodeModalProps) {
   const [label, setLabel] = useState(data.kind === "note" ? "" : data.label);
   const [amount, setAmount] = useState(data.kind === "item" ? data.amount ?? "" : "");
   const [chance, setChance] = useState(data.kind === "item" && data.chancePercent !== undefined ? String(data.chancePercent) : "");
@@ -26,6 +30,7 @@ export function EditNodeModal({ data, onClose, onSave }: EditNodeModalProps) {
   const icons = useIconStore((s) => s.icons);
   const machineIconId =
     data.kind === "machine" ? resolveMachineIconId(icons, data.machineId, tier || undefined) : undefined;
+  const minTierIndex = minTier ? TIER_ORDER.indexOf(minTier) : -1;
 
   function submit() {
     if (data.kind === "item") {
@@ -107,11 +112,16 @@ export function EditNodeModal({ data, onClose, onSave }: EditNodeModalProps) {
               <label className="add-node-amount-label">
                 Tier
                 <select className="add-node-amount-input" value={tier} onChange={(e) => setTier(e.target.value)}>
-                  {TIERS.map((t) => (
-                    <option key={t} value={t}>
-                      {t || "-"}
-                    </option>
-                  ))}
+                  {TIERS.map((t) => {
+                    // "" (unset) always stays selectable - it behaves as running at exactly the
+                    // recipe's own tier (see overclockTierDiff), which is always valid.
+                    const disabled = t !== "" && minTierIndex !== -1 && TIER_ORDER.indexOf(t) < minTierIndex;
+                    return (
+                      <option key={t} value={t} disabled={disabled}>
+                        {t || "-"}
+                      </option>
+                    );
+                  })}
                 </select>
               </label>
             )}

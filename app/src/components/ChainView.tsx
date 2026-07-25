@@ -698,6 +698,11 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
       {editingNode && (
         <EditNodeModal
           data={editingNode.data}
+          minTier={
+            editingNode.data.kind === "machine" && editingNode.data.recipeId
+              ? recipesById.get(editingNode.data.recipeId)?.tier
+              : undefined
+          }
           onClose={() => setEditingNode(null)}
           onSave={(patch) => {
             const nodeId = editingNode.nodeId;
