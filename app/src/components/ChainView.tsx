@@ -16,7 +16,7 @@ import { EDGE_COLOR_CHOICES, NODE_COLOR_CHOICES, useChainStore } from "../state/
 import { useFavoritesStore } from "../state/favoritesStore";
 import { nodeKey } from "../solver/solve";
 import { buildInputIndex, detectActiveRefundLoops, findRefundPaths, type RefundPath } from "../solver/refund";
-import { formatDuration } from "../lib/productionTime";
+import { formatDuration, parallelizedTicks } from "../lib/productionTime";
 import { ItemNode } from "./nodes/ItemNode";
 import { MachineNode } from "./nodes/MachineNode";
 import { NoteNode } from "./nodes/NoteNode";
@@ -245,7 +245,8 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         const amount = Number(targetData.amount);
         if (!Number.isFinite(amount) || amount <= 0) return e;
         const runs = Math.max(1, Math.ceil(amount / outputIo.amount));
-        return { ...e, data: { ...e.data, timeLabel: formatDuration(runs * recipe.durationTicks) } };
+        const ticks = parallelizedTicks(runs, recipe.durationTicks, machineData.parallelCount);
+        return { ...e, data: { ...e.data, timeLabel: formatDuration(ticks) } };
       }),
     [edges, nodeById, recipesById],
   );
@@ -492,6 +493,28 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
                 ],
               },
             ]
+          : []),
+        ...(menuNode.data.kind === "machine"
+          ? (() => {
+              const count = (menuNode.data as MachineNodeData).parallelCount ?? 1;
+              return [
+                {
+                  label: "Add parallel machine",
+                  onClick: () => updateNodeData(menuNode.id, { parallelCount: count + 1 } as Partial<MachineNodeData>),
+                },
+                ...(count > 1
+                  ? [
+                      {
+                        label: "Remove parallel machine",
+                        onClick: () =>
+                          updateNodeData(menuNode.id, {
+                            parallelCount: count - 1 > 1 ? count - 1 : undefined,
+                          } as Partial<MachineNodeData>),
+                      },
+                    ]
+                  : []),
+              ];
+            })()
           : []),
         ...(menuNode.data.color
           ? [{ label: "Clear color", onClick: () => updateNodeData(menuNode.id, { color: undefined }) }]

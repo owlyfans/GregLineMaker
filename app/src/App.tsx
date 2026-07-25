@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { ChainView } from "./components/ChainView";
 import { AddNodeModal } from "./components/AddNodeModal";
 import { PrimaryToolbar } from "./components/PrimaryToolbar";
 import { ChainSummaryPanel } from "./components/ChainSummaryPanel";
+import { Tooltip } from "./components/Tooltip";
 import { useRecipeDatabase } from "./state/useRecipeDatabase";
 import { useChainStore } from "./state/chainStore";
 import { downloadChain, loadFromLocalStorage, readChainFile, saveToLocalStorage } from "./state/persistence";
 import { buildShareUrl, clearShareHash, readShareUrl } from "./state/shareLink";
 import { useIconStore } from "./state/iconStore";
+import { computeBottlenecks } from "./lib/productionTime";
 
 function randomPosition() {
   return { x: 200 + Math.random() * 300, y: 150 + Math.random() * 300 };
@@ -19,6 +21,7 @@ function App() {
   const [addNodeOpen, setAddNodeOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [bottleneckOn, setBottleneckOn] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addItemNode = useChainStore((s) => s.addItemNode);
@@ -27,6 +30,9 @@ function App() {
   const clear = useChainStore((s) => s.clear);
   const loadChain = useChainStore((s) => s.loadChain);
   const nodeCount = useChainStore((s) => s.nodes.length);
+  const nodes = useChainStore((s) => s.nodes);
+  const edges = useChainStore((s) => s.edges);
+  const setBottleneckHighlight = useChainStore((s) => s.setBottleneckHighlight);
   // Read straight from the store (not via ChainView) so this stays in sync with
   // SelectionToolbar/EdgeColorToolbar without any prop-drilling - all three toolbars share the
   // same bottom-center spot and are never shown at once: this one only when nothing at all is
@@ -34,6 +40,25 @@ function App() {
   const selectedCount = useChainStore((s) => s.nodes.filter((n) => n.selected).length);
   const selectedEdgeCount = useChainStore((s) => s.edges.filter((e) => e.selected).length);
   const loadIcons = useIconStore((s) => s.load);
+
+  const bottlenecks = useMemo(() => computeBottlenecks(nodes, edges, db ?? undefined), [nodes, edges, db]);
+
+  // Which nodes/edges the "!" toggle should ring/stroke red right now - just the bottleneck
+  // machines themselves and their OUTPUT connections (not input edges, and not the connected item
+  // nodes at all), so the flag points at the slow process itself rather than implicating everything
+  // around it. Recomputed whenever the toggle, the bottleneck list, or the graph itself changes;
+  // synced into the store below so ItemNode/MachineNode/BendableEdge (which don't have db) can read
+  // it directly, the same way ChainSummaryPanel's hover highlight already works.
+  const bottleneckHighlight = useMemo(() => {
+    if (!bottleneckOn || bottlenecks.length === 0) return { nodeIds: [] as string[], edgeIds: [] as string[] };
+    const machineIds = new Set(bottlenecks.map((b) => b.machineId));
+    const edgeIds = edges.filter((e) => machineIds.has(e.source)).map((e) => e.id);
+    return { nodeIds: [...machineIds], edgeIds };
+  }, [bottleneckOn, bottlenecks, edges]);
+
+  useEffect(() => {
+    setBottleneckHighlight(bottleneckHighlight.nodeIds, bottleneckHighlight.edgeIds);
+  }, [bottleneckHighlight, setBottleneckHighlight]);
 
   useEffect(() => {
     loadIcons();
@@ -109,15 +134,36 @@ function App() {
       <h1 className="app-title-overlay">GregLineMaker</h1>
 
       {!summaryOpen && (
-        <button type="button" className="summary-toggle-btn" title="Chain summary" onClick={() => setSummaryOpen(true)}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <line x1="2" y1="12" x2="10" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
+        <Tooltip label="Chain summary" placement="right">
+          <button type="button" className="summary-toggle-btn" onClick={() => setSummaryOpen(true)}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="2" y1="12" x2="10" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </Tooltip>
       )}
       <ChainSummaryPanel open={summaryOpen} onClose={() => setSummaryOpen(false)} db={db} />
+
+      {!summaryOpen && bottlenecks.length > 0 && (
+        <Tooltip
+          label={`${bottlenecks.length} possible bottleneck${bottlenecks.length === 1 ? "" : "s"} - click to highlight on canvas`}
+          placement="right"
+        >
+          <button
+            type="button"
+            className={`bottleneck-toggle-btn${bottleneckOn ? " active" : ""}`}
+            onClick={() => setBottleneckOn((v) => !v)}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5 L15 14.5 H1 Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+              <line x1="8" y1="6" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="8" cy="12.3" r="0.9" fill="currentColor" />
+            </svg>
+          </button>
+        </Tooltip>
+      )}
 
       <main className="chain-area">{db && <ChainView db={db} />}</main>
 

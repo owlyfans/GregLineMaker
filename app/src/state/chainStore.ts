@@ -104,6 +104,15 @@ interface ChainStoreState {
    * pop open SelectionToolbar). */
   highlightedNodeIds: Set<string>;
   setHighlightedNodes: (ids: string[]) => void;
+  /** Transient, non-persisted "possible bottleneck" ring/stroke on canvas - App.tsx computes which
+   * machines are outliers (see lib/productionTime's computeBottlenecks) plus their directly
+   * connected nodes/edges, and syncs the result here while its toggle button is on. Deliberately a
+   * separate field from `highlightedNodeIds` (different color/meaning) and never touches a node's
+   * actual `color`/`borderColor` or an edge's actual `style.stroke`, so it can't be confused with
+   * (or clobber) a color the user picked manually. */
+  bottleneckNodeIds: Set<string>;
+  bottleneckEdgeIds: Set<string>;
+  setBottleneckHighlight: (nodeIds: string[], edgeIds: string[]) => void;
   /** Replaces the current selection with exactly these nodes and clears any edge selection - used
    * by ChainSummaryPanel's "click an entry to select its nodes" action. A selection change, not a
    * data edit, so (like selectAllNodes) it doesn't checkpoint. */
@@ -242,6 +251,8 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
     past: [],
     future: [],
     highlightedNodeIds: new Set(),
+    bottleneckNodeIds: new Set(),
+    bottleneckEdgeIds: new Set(),
     focusRequest: null,
 
     checkpoint: () => {
@@ -269,6 +280,9 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
     selectAllNodes: () => set({ nodes: get().nodes.map((n) => (n.selected ? n : { ...n, selected: true })) }),
 
     setHighlightedNodes: (ids) => set({ highlightedNodeIds: new Set(ids) }),
+
+    setBottleneckHighlight: (nodeIds, edgeIds) =>
+      set({ bottleneckNodeIds: new Set(nodeIds), bottleneckEdgeIds: new Set(edgeIds) }),
 
     selectNodes: (ids) => {
       const idSet = new Set(ids);

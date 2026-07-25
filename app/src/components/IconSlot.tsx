@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useIconStore } from "../state/iconStore";
+import { Tooltip } from "./Tooltip";
 
 interface IconSlotProps {
   /** icons.json key to resolve. When it doesn't resolve to anything (no texture for this id, e.g.
@@ -22,20 +23,22 @@ interface IconSlotProps {
 export function IconSlot({ id, label, size = 40, topBadge, cornerBadge, className = "" }: IconSlotProps) {
   const src = useIconStore((s) => (id ? s.icons[id] : undefined));
   return (
-    <div className={`icon-slot ${className}`} style={{ width: size, height: size }} title={label}>
-      {src ? (
-        <img src={src} alt="" className="icon-slot-img" style={{ width: size * 0.72, height: size * 0.72 }} />
-      ) : (
-        <span className="icon-slot-fallback" style={{ fontSize: size * 0.4 }}>
-          {(label ?? "?").trim().charAt(0).toUpperCase() || "?"}
-        </span>
-      )}
-      {topBadge !== undefined && topBadge !== null && (
-        <span className="icon-slot-badge icon-slot-badge-top">{topBadge}</span>
-      )}
-      {cornerBadge !== undefined && cornerBadge !== null && (
-        <span className="icon-slot-badge icon-slot-badge-corner">{cornerBadge}</span>
-      )}
-    </div>
+    <Tooltip label={label}>
+      <div className={`icon-slot ${className}`} style={{ width: size, height: size }}>
+        {src ? (
+          <img src={src} alt="" className="icon-slot-img" style={{ width: size * 0.72, height: size * 0.72 }} />
+        ) : (
+          <span className="icon-slot-fallback" style={{ fontSize: size * 0.4 }}>
+            {(label ?? "?").trim().charAt(0).toUpperCase() || "?"}
+          </span>
+        )}
+        {topBadge !== undefined && topBadge !== null && (
+          <span className="icon-slot-badge icon-slot-badge-top">{topBadge}</span>
+        )}
+        {cornerBadge !== undefined && cornerBadge !== null && (
+          <span className="icon-slot-badge icon-slot-badge-corner">{cornerBadge}</span>
+        )}
+      </div>
+    </Tooltip>
   );
 }

@@ -1,3 +1,5 @@
+import { Tooltip } from "./Tooltip";
+
 interface EdgeColorToolbarProps {
   count: number;
   colors: string[];
@@ -15,14 +17,14 @@ export function EdgeColorToolbar({ count, colors, onPick }: EdgeColorToolbarProp
       </span>
       <div className="floating-toolbar-divider" />
       {colors.map((c, i) => (
-        <button
-          key={c}
-          type="button"
-          className="floating-toolbar-swatch"
-          style={{ backgroundColor: c }}
-          title={i === 0 ? "Default" : c}
-          onClick={() => onPick(c)}
-        />
+        <Tooltip key={c} label={i === 0 ? "Default" : c}>
+          <button
+            type="button"
+            className="floating-toolbar-swatch"
+            style={{ backgroundColor: c }}
+            onClick={() => onPick(c)}
+          />
+        </Tooltip>
       ))}
     </div>
   );

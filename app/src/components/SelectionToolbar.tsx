@@ -1,4 +1,5 @@
 import { AlignmentButtons } from "./AlignmentButtons";
+import { Tooltip } from "./Tooltip";
 
 interface NodeColorChoice {
   swatch: string;
@@ -43,14 +44,14 @@ export function SelectionToolbar({
       <span className="floating-toolbar-count">{count} selected</span>
       <div className="floating-toolbar-divider" />
       {colors.map((c, i) => (
-        <button
-          key={c.background}
-          type="button"
-          className="floating-toolbar-swatch"
-          style={{ backgroundColor: c.swatch }}
-          title={i === 0 ? "Default" : c.background}
-          onClick={() => onRecolor(c)}
-        />
+        <Tooltip key={c.background} label={i === 0 ? "Default" : c.background}>
+          <button
+            type="button"
+            className="floating-toolbar-swatch"
+            style={{ backgroundColor: c.swatch }}
+            onClick={() => onRecolor(c)}
+          />
+        </Tooltip>
       ))}
       {count > 1 && (
         <>

@@ -73,6 +73,7 @@ export function BendableEdge({
   const { screenToFlowPosition } = useReactFlow();
   const setEdgeBendPoints = useChainStore((s) => s.setEdgeBendPoints);
   const checkpoint = useChainStore((s) => s.checkpoint);
+  const bottleneckHighlighted = useChainStore((s) => s.bottleneckEdgeIds.has(id));
   const bendPoints = data?.bendPoints ?? [];
   // Forces the dragged point visible even if the pointer moves off the edge's own hover area
   // mid-drag - otherwise the CSS hover-only visibility would make it disappear while still moving.
@@ -91,6 +92,16 @@ export function BendableEdge({
   } else {
     path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
   }
+
+  // Bottleneck highlighting is transient/display-only (see chainStore's bottleneckEdgeIds) - it
+  // overrides the rendered stroke color without touching the edge's actual stored `style.stroke`,
+  // so a user's own manual recolor (or the refund yellow) is unaffected once the highlight is
+  // toggled off. A vivid, saturated red distinct from every muted red already in use elsewhere
+  // (manual red swatch, refund/role-output tones) so it reads as an automatic warning, not a color
+  // choice. Doesn't touch the arrowhead - `markerEnd` here is already a resolved "url(#...)" marker
+  // reference (reactflow generates the actual <marker> defs from the store's edge data elsewhere),
+  // not the raw {color, ...} definition, so it can't be recolored from in here.
+  const displayStyle = bottleneckHighlighted ? { ...style, stroke: "#ff2d55", strokeWidth: 3 } : style;
 
   // Dragging one bend point: checkpoint once at the start (not per frame, same reasoning as node
   // dragging), then push position updates straight to the store as the pointer moves. Plain
@@ -147,10 +158,10 @@ export function BendableEdge({
     <>
       <path
         id={id}
-        style={style}
+        style={displayStyle}
         d={path}
         fill="none"
-        className="react-flow__edge-path"
+        className={`react-flow__edge-path${bottleneckHighlighted ? " bottleneck-edge" : ""}`}
         markerEnd={markerEnd}
         markerStart={markerStart}
       />

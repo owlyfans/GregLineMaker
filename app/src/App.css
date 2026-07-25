@@ -8,6 +8,28 @@
   position: relative;
 }
 
+/* App-wide custom tooltip (see components/Tooltip.tsx) - replaces native `title="..."` (an
+   unstyleable, slow-to-appear OS popup with no collision awareness, so it'll happily overflow the
+   left/right edge of the screen for anything near either side). floating-ui computes `position`/
+   `top`/`left` itself (via flip()/shift() middleware, so it repositions to stay on-screen near any
+   edge) and applies them as an inline style on this element - this class only supplies the visual
+   styling, not positioning. */
+.app-tooltip {
+  background: linear-gradient(180deg, #262b35, #1c1f26);
+  border: 1px solid #3a4152;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #e6e9f0;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  pointer-events: none;
+  z-index: 1000;
+  animation: edge-tooltip-in 0.12s ease-out;
+}
+
 .app-title-overlay {
   position: fixed;
   top: 16px;
@@ -42,6 +64,39 @@
 .summary-toggle-btn:hover {
   background: #2a303c;
   color: #fff;
+}
+
+/* "Possible bottlenecks" toggle - only rendered at all when computeBottlenecks finds something
+   (see App.tsx), stacked directly below the Chain summary toggle on the same left edge. Muted red
+   by default (still legible as "this is about a problem" without shouting), brighter + a background
+   tint while active so it's obvious the highlight is currently on. */
+.bottleneck-toggle-btn {
+  position: fixed;
+  top: 100px;
+  left: 16px;
+  z-index: 56;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #1c1f26;
+  border: 1px solid #2f3440;
+  border-radius: 8px;
+  color: #e2786f;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.bottleneck-toggle-btn:hover {
+  background: #2a303c;
+  color: #ff2d55;
+}
+
+.bottleneck-toggle-btn.active {
+  background: #3a1420;
+  border-color: #ff2d55;
+  color: #ff2d55;
 }
 
 .summary-panel-overlay {
@@ -461,17 +516,43 @@
   pointer-events: none;
 }
 
+@keyframes edge-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .edge-bend-tooltip {
   position: absolute;
-  background: #1c1f26;
-  border: 1px solid #2f3440;
-  border-radius: 4px;
-  padding: 3px 7px;
-  font-size: 0.7rem;
-  color: #c3c9d4;
+  background: linear-gradient(180deg, #262b35, #1c1f26);
+  border: 1px solid #3a4152;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #e6e9f0;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  /* Animates opacity only, never transform - the component sets transform inline to position this
+     exactly on the line, and a CSS animation touching the same property would fight that. */
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
   pointer-events: none;
+  animation: edge-tooltip-in 0.15s ease-out;
+}
+
+.edge-bend-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1c1f26;
 }
 
 /* Recolor swatch button, used in the bottom-center EdgeColorToolbar (shown instead of
@@ -657,6 +738,29 @@
 .flow-node.summary-highlighted {
   box-shadow: 0 0 0 2px #ffb454, 0 0 16px rgba(255, 180, 84, 0.7);
   z-index: 5;
+}
+
+/* Possible-bottleneck flag (see the left-side "!" toggle in App.tsx) - a vivid, saturated,
+   pulsing red distinct from every muted red already used elsewhere (the manual red color swatch,
+   refund/role-output tones) so it reads as an automatic warning, not a color someone picked. Comes
+   after .summary-highlighted in the cascade so it wins if a node is somehow both at once. */
+@keyframes bottleneck-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px #ff2d55, 0 0 16px rgba(255, 45, 85, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 2px #ff2d55, 0 0 28px rgba(255, 45, 85, 0.9);
+  }
+}
+
+.flow-node.bottleneck-flagged {
+  animation: bottleneck-pulse 1.4s ease-in-out infinite;
+  z-index: 6;
+}
+
+.bottleneck-edge {
+  filter: drop-shadow(0 0 4px rgba(255, 45, 85, 0.8));
 }
 
 .item-node {

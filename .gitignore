@@ -10,6 +10,7 @@ data/recipes.json
 app/public/data/recipes.json
 app/public/data/icons.json
 app/public/icons/
+ui-examples/
 
 # Node
 node_modules/

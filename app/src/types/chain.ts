@@ -63,6 +63,12 @@ export interface MachineNodeData {
   /** The recipe's raw namespaced machine id (e.g. "gtceu:macerator"), if known - used to look up
    * an icon (see lib/machineIcon.ts). Not set for manually added machine nodes. */
   machineId?: string;
+  /** How many of this exact machine are running in parallel on the same recipe - same inputs and
+   * outputs, just more instances splitting the workload, not separate nodes. Lets a slow step's
+   * share of the critical-path "time to produce" be divided across N machines instead of one
+   * running every batch serially (see lib/productionTime.ts). Manual, set via the node's
+   * right-click menu; undefined/1 means just the one machine. */
+  parallelCount?: number;
   color?: string;
   borderColor?: string;
 }

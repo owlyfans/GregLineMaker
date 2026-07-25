@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { NoteNodeData } from "../../types/chain";
 import { useChainStore } from "../../state/chainStore";
 import { NodeHandles } from "./NodeHandles";
+import { Tooltip } from "../Tooltip";
 
 export function NoteNode({ id, data, selected }: { id: string; data: NoteNodeData; selected?: boolean }) {
   const updateNodeData = useChainStore((s) => s.updateNodeData);
@@ -34,9 +35,11 @@ export function NoteNode({ id, data, selected }: { id: string; data: NoteNodeDat
           autoFocus
         />
       ) : (
-        <div className="note-node-text" onDoubleClick={startEditing} title="Double-click to edit">
-          {data.text || "(empty note - double-click to edit)"}
-        </div>
+        <Tooltip label="Double-click to edit">
+          <div className="note-node-text" onDoubleClick={startEditing}>
+            {data.text || "(empty note - double-click to edit)"}
+          </div>
+        </Tooltip>
       )}
     </div>
   );

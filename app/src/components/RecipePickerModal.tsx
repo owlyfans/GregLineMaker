@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import type { Recipe, RecipeDatabase } from "../types/recipe";
-import { humanizeMachine } from "../solver/solve";
+import { humanizeMachine, isConfigItem } from "../solver/solve";
 import { fuzzyFilter } from "../lib/fuzzy";
 import { resolveMachineIconId } from "../lib/machineIcon";
 import { useIconStore } from "../state/iconStore";
 import { Modal } from "./Modal";
 import { IconSlot } from "./IconSlot";
+import { Tooltip } from "./Tooltip";
 
 const TIER_ORDER = ["ULV", "LV", "MV", "HV", "EV", "IV", "LuV", "ZPM", "UV", "UHV", "UEV", "UIV", "UXV", "OpV", "MAX"];
 function tierRank(tier?: string): number {
@@ -184,24 +185,32 @@ export function RecipePickerModal({
               const matchIo = (direction === "from" ? r.outputs : r.inputs).find(
                 (io) => io.kind === targetKind && io.ids.includes(targetId),
               )!;
-              const otherIos = (direction === "from" ? r.outputs : r.inputs).filter((io) => io !== matchIo);
-              const displayIos = direction === "from" ? r.inputs : r.outputs;
+              // Programmed circuits are a machine config value, not a real ingredient (see
+              // isConfigItem) - never worth showing in a recipe preview, whichever list they'd
+              // otherwise land in.
+              const otherIos = (direction === "from" ? r.outputs : r.inputs).filter(
+                (io) => io !== matchIo && !(io.kind === "item" && isConfigItem(io.ids[0])),
+              );
+              const displayIos = (direction === "from" ? r.inputs : r.outputs).filter(
+                (io) => !(io.kind === "item" && isConfigItem(io.ids[0])),
+              );
               const isFavorite = favoriteRecipeIds?.has(r.id) ?? false;
               return (
                 <li key={r.id} className="recipe-list-item" onClick={() => onPick(r)}>
                   <div className="recipe-list-row">
                     {onToggleFavorite && (
-                      <button
-                        type="button"
-                        className={`favorite-star${isFavorite ? " active" : ""}`}
-                        title={isFavorite ? "Unfavorite" : "Favorite"}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleFavorite(r.id);
-                        }}
-                      >
-                        {isFavorite ? "★" : "☆"}
-                      </button>
+                      <Tooltip label={isFavorite ? "Unfavorite" : "Favorite"}>
+                        <button
+                          type="button"
+                          className={`favorite-star${isFavorite ? " active" : ""}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFavorite(r.id);
+                          }}
+                        >
+                          {isFavorite ? "★" : "☆"}
+                        </button>
+                      </Tooltip>
                     )}
                     <IconSlot
                       id={targetId}

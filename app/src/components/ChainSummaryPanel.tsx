@@ -6,6 +6,7 @@ import { summarizeChain, type SummaryItemEntry, type SummaryMachineEntry } from 
 import { computeFinalOutputTimes, formatDuration, type FinalOutputTime } from "../lib/productionTime";
 import type { RecipeDatabase } from "../types/recipe";
 import { IconSlot } from "./IconSlot";
+import { Tooltip } from "./Tooltip";
 
 interface ChainSummaryPanelProps {
   open: boolean;
@@ -47,37 +48,38 @@ function ItemSection({ title, entries, onHover, onSelect }: { title: string; ent
           const allNodeIds = e.contributions.map((c) => c.nodeId);
           return (
             <div key={e.key}>
-              <div
-                className="summary-row summary-row-clickable"
-                onMouseEnter={() => onHover(allNodeIds)}
-                onMouseLeave={() => onHover([])}
-                onClick={() => (splittable ? toggle(e.key) : onSelect(allNodeIds))}
-                title={splittable ? "Click to see the original per-machine split" : "Click to select on canvas"}
-              >
-                <IconSlot id={e.itemId} label={e.label} size={32} cornerBadge={e.count} />
-                <span className="summary-row-label">{e.label}</span>
-                {splittable && <span className={`summary-row-chevron${isOpen ? " open" : ""}`}>&rsaquo;</span>}
-              </div>
+              <Tooltip label={splittable ? "Click to see the original per-machine split" : "Click to select on canvas"}>
+                <div
+                  className="summary-row summary-row-clickable"
+                  onMouseEnter={() => onHover(allNodeIds)}
+                  onMouseLeave={() => onHover([])}
+                  onClick={() => (splittable ? toggle(e.key) : onSelect(allNodeIds))}
+                >
+                  <IconSlot id={e.itemId} label={e.label} size={32} cornerBadge={e.count} />
+                  <span className="summary-row-label">{e.label}</span>
+                  {splittable && <span className={`summary-row-chevron${isOpen ? " open" : ""}`}>&rsaquo;</span>}
+                </div>
+              </Tooltip>
               {isOpen && (
                 <div className="summary-contributions">
                   {e.contributions.map((c) => (
-                    <div
-                      className="summary-contribution-row summary-row-clickable"
-                      key={c.nodeId}
-                      onMouseEnter={(ev) => {
-                        ev.stopPropagation();
-                        onHover([c.nodeId]);
-                      }}
-                      onMouseLeave={() => onHover([])}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        onSelect([c.nodeId]);
-                      }}
-                      title="Click to select just this one on canvas"
-                    >
-                      <span className="summary-contribution-amount">{c.amount}</span>
-                      <span className="summary-contribution-machines">&rarr; {describeMachines(c.machines)}</span>
-                    </div>
+                    <Tooltip key={c.nodeId} label="Click to select just this one on canvas">
+                      <div
+                        className="summary-contribution-row summary-row-clickable"
+                        onMouseEnter={(ev) => {
+                          ev.stopPropagation();
+                          onHover([c.nodeId]);
+                        }}
+                        onMouseLeave={() => onHover([])}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          onSelect([c.nodeId]);
+                        }}
+                      >
+                        <span className="summary-contribution-amount">{c.amount}</span>
+                        <span className="summary-contribution-machines">&rarr; {describeMachines(c.machines)}</span>
+                      </div>
+                    </Tooltip>
                   ))}
                 </div>
               )}
@@ -97,18 +99,18 @@ function FinalOutputSection({ entries, onHover, onSelect }: { entries: FinalOutp
         <div className="summary-section-empty">Mark a node as final output to see this</div>
       ) : (
         entries.map((e) => (
-          <div
-            className="summary-row summary-row-clickable"
-            key={e.nodeId}
-            onMouseEnter={() => onHover([e.nodeId])}
-            onMouseLeave={() => onHover([])}
-            onClick={() => onSelect([e.nodeId])}
-            title="Click to select on canvas"
-          >
-            <IconSlot id={e.itemId} label={e.label} size={32} cornerBadge={e.amount} />
-            <span className="summary-row-label">{e.label}</span>
-            <span className="summary-row-time">{formatDuration(e.ticks)}</span>
-          </div>
+          <Tooltip key={e.nodeId} label="Click to select on canvas">
+            <div
+              className="summary-row summary-row-clickable"
+              onMouseEnter={() => onHover([e.nodeId])}
+              onMouseLeave={() => onHover([])}
+              onClick={() => onSelect([e.nodeId])}
+            >
+              <IconSlot id={e.itemId} label={e.label} size={32} cornerBadge={e.amount} />
+              <span className="summary-row-label">{e.label}</span>
+              <span className="summary-row-time">{formatDuration(e.ticks)}</span>
+            </div>
+          </Tooltip>
         ))
       )}
     </div>
@@ -128,23 +130,23 @@ function MachineSection({
         <div className="summary-section-empty">None yet</div>
       ) : (
         entries.map((e) => (
-          <div
-            className="summary-row summary-row-clickable"
-            key={e.key}
-            onMouseEnter={() => onHover(e.nodeIds)}
-            onMouseLeave={() => onHover([])}
-            onClick={() => onSelect(e.nodeIds)}
-            title="Click to select all on canvas"
-          >
-            <IconSlot
-              id={resolveMachineIconId(icons, e.machineId, e.tier)}
-              label={e.label}
-              size={32}
-              topBadge={e.tier}
-              cornerBadge={e.count}
-            />
-            <span className="summary-row-label">{e.label}</span>
-          </div>
+          <Tooltip key={e.key} label="Click to select all on canvas">
+            <div
+              className="summary-row summary-row-clickable"
+              onMouseEnter={() => onHover(e.nodeIds)}
+              onMouseLeave={() => onHover([])}
+              onClick={() => onSelect(e.nodeIds)}
+            >
+              <IconSlot
+                id={resolveMachineIconId(icons, e.machineId, e.tier)}
+                label={e.label}
+                size={32}
+                topBadge={e.tier}
+                cornerBadge={e.count}
+              />
+              <span className="summary-row-label">{e.label}</span>
+            </div>
+          </Tooltip>
         ))
       )}
     </div>
@@ -193,12 +195,14 @@ export function ChainSummaryPanel({ open, onClose, db }: ChainSummaryPanelProps)
       <aside className={`summary-panel${open ? " open" : ""}`}>
         <div className="summary-panel-header">
           <span>Chain summary</span>
-          <button type="button" className="summary-panel-close" title="Close" onClick={onClose}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
+          <Tooltip label="Close" placement="right">
+            <button type="button" className="summary-panel-close" onClick={onClose}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </Tooltip>
         </div>
         <div className="summary-panel-body">
           <FinalOutputSection entries={finalOutputTimes} onHover={setHighlightedNodes} onSelect={handleSelect} />
