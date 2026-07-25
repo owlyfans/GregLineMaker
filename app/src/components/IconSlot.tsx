@@ -13,10 +13,11 @@ interface IconSlotProps {
   /** Rendered top-left, e.g. a recipe tier ("HV") or chance percent - kept small/outlined like
    * Minecraft's own stack-count font so it reads at a glance without competing with the icon. */
   topBadge?: ReactNode;
-  /** CSS `background-image` gradient (see lib/gtTiers' tierGradient) applied as a text-fill to
-   * `topBadge` instead of the default plain white - for tier badges specifically, not chance%/other
-   * uses of topBadge, so this is opt-in per call site rather than automatic. */
-  topBadgeGradient?: string;
+  /** Solid text color (see lib/gtTiers' tierColor) applied to `topBadge` instead of the default
+   * plain white - for tier badges specifically, not chance%/other uses of topBadge, so this is
+   * opt-in per call site rather than automatic. A gradient fill (background-clip: text) was tried
+   * here first but reads as muddy/broken at this badge's ~10px size, so this stays a flat color. */
+  topBadgeColor?: string;
   /** Rendered bottom-right, e.g. a quantity ("24x") - the Minecraft stack-count position. */
   cornerBadge?: ReactNode;
   className?: string;
@@ -34,7 +35,7 @@ export function IconSlot({
   label,
   size = 40,
   topBadge,
-  topBadgeGradient,
+  topBadgeColor,
   cornerBadge,
   className = "",
   itemTooltip,
@@ -58,20 +59,7 @@ export function IconSlot({
           </span>
         )}
         {topBadge !== undefined && topBadge !== null && (
-          <span
-            className="icon-slot-badge icon-slot-badge-top"
-            style={
-              topBadgeGradient
-                ? {
-                    backgroundImage: topBadgeGradient,
-                    WebkitBackgroundClip: "text",
-                    backgroundClip: "text",
-                    color: "transparent",
-                    WebkitTextFillColor: "transparent",
-                  }
-                : undefined
-            }
-          >
+          <span className="icon-slot-badge icon-slot-badge-top" style={topBadgeColor ? { color: topBadgeColor } : undefined}>
             {topBadge}
           </span>
         )}

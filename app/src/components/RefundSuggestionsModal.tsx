@@ -3,7 +3,7 @@ import type { RecipeDatabase } from "../types/recipe";
 import type { RefundPath } from "../solver/refund";
 import { humanizeMachine, type NodeKind } from "../solver/solve";
 import { resolveMachineIconId } from "../lib/machineIcon";
-import { tierGradient } from "../lib/gtTiers";
+import { tierColor } from "../lib/gtTiers";
 import { useIconStore } from "../state/iconStore";
 import { Modal } from "./Modal";
 import { IconSlot } from "./IconSlot";
@@ -107,7 +107,7 @@ export function RefundSuggestionsModal({
                               label={machineLabel}
                               size={20}
                               topBadge={step.recipe.tier}
-                              topBadgeGradient={step.recipe.tier ? tierGradient(step.recipe.tier) : undefined}
+                              topBadgeColor={step.recipe.tier ? tierColor(step.recipe.tier) : undefined}
                             />
                             {machineLabel}
                           </div>
