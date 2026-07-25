@@ -4,6 +4,7 @@ import { humanizeMachine } from "../solver/solve";
 import { resolveMachineIconId } from "../lib/machineIcon";
 import { COIL_MACHINE_TYPES, COIL_TYPES } from "../lib/coils";
 import { useIconStore } from "../state/iconStore";
+import { useSettingsStore } from "../state/settingsStore";
 import { ItemPicker, type PickerOption } from "./ItemPicker";
 import { QuickAmountButtons } from "./QuickAmountButtons";
 import { Modal } from "./Modal";
@@ -21,11 +22,14 @@ interface AddNodeModalProps {
 }
 
 export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }: AddNodeModalProps) {
+  const preferredTier = useSettingsStore((s) => s.preferredTier);
   const [kind, setKind] = useState<AddNodeKind>("item");
   const [selected, setSelected] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [machineId, setMachineId] = useState<string | null>(null);
-  const [machineTier, setMachineTier] = useState("");
+  // Pre-fills from Settings' "preferred tier for new machines" (see SettingsModal) when it's one
+  // of the tiers this dropdown actually offers - still an editable default, not a locked value.
+  const [machineTier, setMachineTier] = useState(preferredTier && TIERS.includes(preferredTier) ? preferredTier : "");
   const [coilTier, setCoilTier] = useState("");
   const [noteText, setNoteText] = useState("");
   const icons = useIconStore((s) => s.icons);

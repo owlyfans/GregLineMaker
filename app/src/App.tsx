@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { ChainView } from "./components/ChainView";
 import { AddNodeModal } from "./components/AddNodeModal";
+import { SettingsModal } from "./components/SettingsModal";
 import { PrimaryToolbar } from "./components/PrimaryToolbar";
 import { ChainSummaryPanel } from "./components/ChainSummaryPanel";
 import { Tooltip } from "./components/Tooltip";
@@ -19,6 +20,7 @@ function randomPosition() {
 function App() {
   const { db, loading, error, progress } = useRecipeDatabase();
   const [addNodeOpen, setAddNodeOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [bottleneckOn, setBottleneckOn] = useState(false);
@@ -206,6 +208,7 @@ function App() {
           onSave={handleSave}
           onLoad={() => fileInputRef.current?.click()}
           onShare={handleShare}
+          onOpenSettings={() => setSettingsOpen(true)}
           onClear={clear}
         />
       )}
@@ -223,10 +226,12 @@ function App() {
           db={db}
           onClose={() => setAddNodeOpen(false)}
           onAddItem={(kind, itemId, label, amount) => addItemNode(kind, itemId, label, randomPosition(), amount)}
-          onAddMachine={(label, tier) => addMachineNode(label, tier, randomPosition())}
+          onAddMachine={(label, tier, machineId, coilTier) => addMachineNode(label, tier, randomPosition(), machineId, coilTier)}
           onAddNote={(text) => addNoteNode(text, randomPosition())}
         />
       )}
+
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

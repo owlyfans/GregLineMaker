@@ -14,13 +14,15 @@ interface PrimaryToolbarProps {
   onSave: () => void;
   onLoad: () => void;
   onShare: () => void;
+  onOpenSettings: () => void;
   onClear: () => void;
 }
 
 /** Floating bar in the same bottom-center spot as SelectionToolbar - shown instead of it whenever
  * 0 or 1 nodes are selected (see App.tsx), so the two never compete for the same space. Add/Save/
- * Load/Share are icon buttons (frequent, spatially-obvious actions); Clear canvas stays a labelled
- * text button since it's destructive and infrequent - an icon alone would be too easy to misfire. */
+ * Load/Share/Settings are icon buttons (frequent, spatially-obvious actions); Clear canvas stays a
+ * labelled text button since it's destructive and infrequent - an icon alone would be too easy to
+ * misfire. */
 export function PrimaryToolbar({
   dbReady,
   loading,
@@ -34,6 +36,7 @@ export function PrimaryToolbar({
   onSave,
   onLoad,
   onShare,
+  onOpenSettings,
   onClear,
 }: PrimaryToolbarProps) {
   return (
@@ -82,6 +85,19 @@ export function PrimaryToolbar({
             <circle cx="12" cy="12.5" r="2" fill="currentColor" />
             <line x1="5.7" y1="7" x2="10.3" y2="4.5" stroke="currentColor" strokeWidth="1.3" />
             <line x1="5.7" y1="9" x2="10.3" y2="11.5" stroke="currentColor" strokeWidth="1.3" />
+          </svg>
+        </button>
+      </Tooltip>
+      <Tooltip label="Settings">
+        <button type="button" className="floating-toolbar-btn" onClick={onOpenSettings}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+            <path
+              d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
           </svg>
         </button>
       </Tooltip>

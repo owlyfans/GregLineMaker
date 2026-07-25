@@ -3,18 +3,13 @@ import type { Recipe, RecipeDatabase } from "../types/recipe";
 import { humanizeMachine } from "../solver/solve";
 import { fuzzyFilter } from "../lib/fuzzy";
 import { resolveMachineIconId } from "../lib/machineIcon";
+import { tierRank } from "../lib/gtTiers";
 import { useIconStore } from "../state/iconStore";
+import { useSettingsStore } from "../state/settingsStore";
 import { Modal } from "./Modal";
 import { IconSlot } from "./IconSlot";
 import { Tooltip } from "./Tooltip";
 import { RecipeCard } from "./RecipeCard";
-
-const TIER_ORDER = ["ULV", "LV", "MV", "HV", "EV", "IV", "LuV", "ZPM", "UV", "UHV", "UEV", "UIV", "UXV", "OpV", "MAX"];
-function tierRank(tier?: string): number {
-  if (!tier) return -1;
-  const i = TIER_ORDER.indexOf(tier);
-  return i === -1 ? 999 : i;
-}
 
 const FAVORITES_TAB = "__favorites__";
 const SUGGESTED_TAB = "__suggested__";
@@ -55,14 +50,29 @@ export function RecipePickerModal({
 }: RecipePickerModalProps) {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [showAboveTier, setShowAboveTier] = useState(false);
   const icons = useIconStore((s) => s.icons);
+  const maxTier = useSettingsStore((s) => s.maxTier);
 
-  const matching = useMemo(
+  const allMatching = useMemo(
     () =>
       db.recipes.filter((r) =>
         (direction === "from" ? r.outputs : r.inputs).some((io) => io.kind === targetKind && io.ids.includes(targetId)),
       ),
     [db, direction, targetKind, targetId],
+  );
+
+  // Recipes needing a higher tier than the player's set "highest tier available" (see
+  // SettingsModal) - hidden by default since they can't actually be built yet, but the count is
+  // surfaced with a checkbox to peek at them anyway (e.g. planning ahead for a tier not reached yet).
+  const hiddenAboveTier = useMemo(
+    () => (maxTier ? allMatching.filter((r) => tierRank(r.tier) > tierRank(maxTier)) : []),
+    [allMatching, maxTier],
+  );
+
+  const matching = useMemo(
+    () => (maxTier && !showAboveTier ? allMatching.filter((r) => tierRank(r.tier) <= tierRank(maxTier)) : allMatching),
+    [allMatching, maxTier, showAboveTier],
   );
 
   const byMachine = useMemo(() => {
@@ -123,14 +133,28 @@ export function RecipePickerModal({
       onClose={onClose}
       width={860}
     >
-      {matching.length === 0 ? (
+      {allMatching.length === 0 ? (
         <p className="modal-empty">
           {direction === "from"
             ? "No recipes in the database produce this item/fluid - it's a raw resource."
             : "No recipes in the database consume this item/fluid."}
         </p>
+      ) : matching.length === 0 ? (
+        <p className="modal-empty">
+          Every recipe here needs a higher tier than your {maxTier} limit ({hiddenAboveTier.length} hidden).{" "}
+          <button type="button" className="settings-hint-link" onClick={() => setShowAboveTier(true)}>
+            Show them anyway
+          </button>
+        </p>
       ) : (
         <>
+          {hiddenAboveTier.length > 0 && (
+            <label className="confirm-delete-option tier-filter-note">
+              <input type="checkbox" checked={showAboveTier} onChange={(e) => setShowAboveTier(e.target.checked)} />
+              Show {hiddenAboveTier.length} recipe{hiddenAboveTier.length === 1 ? "" : "s"} above your {maxTier} tier
+              limit
+            </label>
+          )}
           <input
             className="modal-search"
             type="text"

@@ -71,12 +71,24 @@ export function tierGradient(tier?: string): string {
   return `linear-gradient(180deg, ${top} 0%, ${mid} 50%, ${bottom} 100%)`;
 }
 
-// Order matters here - index = rank on the voltage ladder, used by the overclock math below.
+// Order matters here - index = rank on the voltage ladder, used by the overclock math below and
+// shared with the settings tier-filter/preferred-tier UI (see state/settingsStore.ts) and the
+// recipe picker.
 export const TIER_ORDER = Object.keys(TIER_VOLTAGE);
 
 export function tierIndex(tier?: string): number {
   if (!tier) return -1;
   return TIER_ORDER.indexOf(tier);
+}
+
+/** Rank of a tier in TIER_ORDER (0 = ULV, higher = further up the ladder). Untiered recipes
+ * (undefined) rank below everything - they're always available regardless of a tier cap. Same
+ * ordering as tierIndex above, just Infinity (not -1) for a tier string that isn't in TIER_ORDER
+ * at all - lets a sort put "unknown tier" recipes last instead of first. */
+export function tierRank(tier?: string): number {
+  if (!tier) return -1;
+  const i = TIER_ORDER.indexOf(tier);
+  return i === -1 ? Infinity : i;
 }
 
 /** How many voltage tiers a machine is overclocking a recipe by - how far its own actual tier sits

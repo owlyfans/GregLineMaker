@@ -1314,6 +1314,27 @@
   margin: 0 0 12px;
 }
 
+.settings-hint {
+  margin: -6px 0 0;
+  font-size: 0.75rem;
+  color: #8b93a3;
+  line-height: 1.4;
+}
+
+.tier-filter-note {
+  margin-bottom: 10px;
+}
+
+.settings-hint-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #5b9dd9;
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .confirm-delete-option {
   display: flex;
   align-items: center;
