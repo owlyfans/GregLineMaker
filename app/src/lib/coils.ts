@@ -32,8 +32,13 @@ export const COIL_TYPES: CoilTypeInfo[] = [
 ];
 
 /** Machines whose overclock "perfection" depends on coil temperature vs. the recipe's own heat
- * requirement (see perfectOverclockTierCount) - shows a Coil dropdown for these. */
-export const COIL_MACHINE_TYPES = new Set(["gtceu:electric_blast_furnace"]);
+ * requirement (see perfectOverclockTierCount) - shows a Coil dropdown for these. Alloy Blast
+ * Smelter turns out to be its own separate GTCEu recipe type (not a shared one with Electric
+ * Blast Furnace, as first assumed - confirmed against the actual dumped recipe data, which has
+ * heat-requirement recipes filed under both "gtceu:electric_blast_furnace" AND
+ * "gtceu:alloy_blast_smelter" independently); Rotary Hearth Furnace has no recipe type of its own
+ * in the data, confirming it does share "gtceu:electric_blast_furnace"'s. */
+export const COIL_MACHINE_TYPES = new Set(["gtceu:electric_blast_furnace", "gtceu:alloy_blast_smelter"]);
 
 /** The Large Chemical Reactor perfect-overclocks unconditionally - it's fixed at exactly one
  * Cupronickel coil by its multiblock structure requirement, not a player choice, so it always

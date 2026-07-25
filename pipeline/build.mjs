@@ -137,9 +137,10 @@ function normalizeGtRecipes(raw) {
       tier: r.tier,
       durationTicks: r.duration,
       voltage: r.voltage,
-      // Kelvin a coil multiblock (Electric Blast Furnace/Alloy Blast Smelter/Rotary Hearth
-      // Furnace) must reach to run this recipe - only present for "Hot Ingot"-style recipes
-      // (see mod/'s RecipeDumper.java, which reads GTCEu's own "ebf_temp" recipe data tag).
+      // Kelvin a coil multiblock (Electric Blast Furnace/Alloy Blast Smelter - Rotary Hearth
+      // Furnace reuses Electric Blast Furnace's recipe type) must reach to run this recipe - only
+      // present for "Hot Ingot"-style recipes (see mod/'s RecipeDumper.java, which reads GTCEu's
+      // own "ebf_temp" recipe data tag).
       heatRequirement: r.heatRequirement,
       inputs,
       outputs,
