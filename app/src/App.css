@@ -310,6 +310,29 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
+/* Docks two floating-toolbar pills side by side at the same bottom-center spot instead of one -
+   e.g. EdgeColorToolbar (left) + AlignmentToolbar (right) when a multi-node selection's connecting
+   edge also got auto-selected. Overrides each pill's own self-positioning (meant for when it's the
+   only thing on screen) so flexbox lays them out side by side instead of both centering on top of
+   each other. */
+.floating-toolbar-dock {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.floating-toolbar-dock .floating-toolbar {
+  position: static;
+  bottom: auto;
+  left: auto;
+  transform: none;
+}
+
 .floating-toolbar-count {
   font-size: 0.78rem;
   color: #8b93a3;

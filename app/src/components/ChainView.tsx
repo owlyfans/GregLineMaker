@@ -28,6 +28,7 @@ import { AddNodeModal } from "./AddNodeModal";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { EdgeColorToolbar } from "./EdgeColorToolbar";
+import { AlignmentToolbar } from "./AlignmentToolbar";
 import { BendableEdge } from "./edges/BendableEdge";
 
 const nodeTypes = { item: ItemNode, machine: MachineNode, note: NoteNode };
@@ -181,9 +182,11 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
   // any node/edge changes - not just once for the node being created - so adding or removing any
   // node can retroactively surface (or retire) a suggestion for a completely different node.
   const possibleRefundIds = useMemo(() => {
-    // A node with both an incoming edge (something already produces it) and an outgoing edge
-    // (it already feeds something else) is already fully wired into the chain both ways, not a
-    // dangling byproduct - suggesting a refund for it is redundant, so skip those entirely.
+    // A "possible refund" is specifically an already-produced byproduct that isn't consumed by
+    // anything yet - it needs an incoming edge (something actually produces it; a fresh
+    // disconnected node isn't a byproduct of anything) but must NOT already have an outgoing edge
+    // (already wired to something else is not a dangling surplus anymore, suggesting one is
+    // redundant).
     const hasIncoming = new Set<string>();
     const hasOutgoing = new Set<string>();
     for (const e of edges) {
@@ -193,7 +196,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
     const ids = new Set<string>();
     for (const n of nodes) {
       if (n.data.kind !== "item" || n.data.role) continue;
-      if (hasIncoming.has(n.id) && hasOutgoing.has(n.id)) continue;
+      if (!hasIncoming.has(n.id) || hasOutgoing.has(n.id)) continue;
       const existingKeys = buildExistingKeys(n.id);
       if (findRefundPaths(inputIndex, n.data.materialKind, n.data.itemId, existingKeys).length > 0) {
         ids.add(n.id);
@@ -542,7 +545,11 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         nodesDraggable
         panOnDrag={[1]}
         selectionOnDrag
-        selectionMode={SelectionMode.Full}
+        // Partial (not Full) - a node counts as selected once the marquee touches any part of it,
+        // not only once the whole node is enclosed. Nodes vary in size (machine vs item vs note)
+        // and are often packed close together, so requiring full containment made it easy to drag
+        // a box that visibly overlaps a node yet leaves it out.
+        selectionMode={SelectionMode.Partial}
         multiSelectionKeyCode="Shift"
         selectionKeyCode="Shift"
         deleteKeyCode={null}
@@ -560,29 +567,54 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         <ContextMenu x={edgeMenu.x} y={edgeMenu.y} items={edgeMenuItems} onClose={() => setEdgeMenu(null)} />
       )}
 
-      {selectedEdgeIds.length > 0 ? (
-        <EdgeColorToolbar
-          count={selectedEdgeIds.length}
-          colors={EDGE_COLOR_CHOICES}
-          onPick={(color) => setEdgesColor(selectedEdgeIds, color)}
-        />
-      ) : (
-        selectedNodeIds.length >= 1 && (
-          <SelectionToolbar
-            count={selectedNodeIds.length}
-            colors={NODE_COLOR_CHOICES}
-            onRecolor={(choice) => setNodesColor(selectedNodeIds, choice)}
-            onSpaceOutHorizontal={() => spaceOutNodes(selectedNodeIds, "x")}
-            onSpaceOutVertical={() => spaceOutNodes(selectedNodeIds, "y")}
-            onAlignLeft={() => alignNodes(selectedNodeIds, "x", "start")}
-            onAlignHCenter={() => alignNodes(selectedNodeIds, "x", "center")}
-            onAlignRight={() => alignNodes(selectedNodeIds, "x", "end")}
-            onAlignTop={() => alignNodes(selectedNodeIds, "y", "start")}
-            onAlignVCenter={() => alignNodes(selectedNodeIds, "y", "center")}
-            onAlignBottom={() => alignNodes(selectedNodeIds, "y", "end")}
+      {(() => {
+        const edgeColorToolbar = selectedEdgeIds.length > 0 && (
+          <EdgeColorToolbar
+            count={selectedEdgeIds.length}
+            colors={EDGE_COLOR_CHOICES}
+            onPick={(color) => setEdgesColor(selectedEdgeIds, color)}
           />
-        )
-      )}
+        );
+        if (!edgeColorToolbar) {
+          // No edges selected - the common case: node recolor + align combined in one pill.
+          return (
+            selectedNodeIds.length >= 1 && (
+              <SelectionToolbar
+                count={selectedNodeIds.length}
+                colors={NODE_COLOR_CHOICES}
+                onRecolor={(choice) => setNodesColor(selectedNodeIds, choice)}
+                onSpaceOutHorizontal={() => spaceOutNodes(selectedNodeIds, "x")}
+                onSpaceOutVertical={() => spaceOutNodes(selectedNodeIds, "y")}
+                onAlignLeft={() => alignNodes(selectedNodeIds, "x", "start")}
+                onAlignHCenter={() => alignNodes(selectedNodeIds, "x", "center")}
+                onAlignRight={() => alignNodes(selectedNodeIds, "x", "end")}
+                onAlignTop={() => alignNodes(selectedNodeIds, "y", "start")}
+                onAlignVCenter={() => alignNodes(selectedNodeIds, "y", "center")}
+                onAlignBottom={() => alignNodes(selectedNodeIds, "y", "end")}
+              />
+            )
+          );
+        }
+        if (selectedNodeIds.length < 2) return edgeColorToolbar;
+        // An edge got auto-selected alongside a multi-node selection (react-flow selects an edge
+        // once both its endpoints are marquee-selected) - show both toolbars side by side (color
+        // left, align right) instead of the edge color picker replacing align entirely.
+        return (
+          <div className="floating-toolbar-dock">
+            {edgeColorToolbar}
+            <AlignmentToolbar
+              onSpaceOutHorizontal={() => spaceOutNodes(selectedNodeIds, "x")}
+              onSpaceOutVertical={() => spaceOutNodes(selectedNodeIds, "y")}
+              onAlignLeft={() => alignNodes(selectedNodeIds, "x", "start")}
+              onAlignHCenter={() => alignNodes(selectedNodeIds, "x", "center")}
+              onAlignRight={() => alignNodes(selectedNodeIds, "x", "end")}
+              onAlignTop={() => alignNodes(selectedNodeIds, "y", "start")}
+              onAlignVCenter={() => alignNodes(selectedNodeIds, "y", "center")}
+              onAlignBottom={() => alignNodes(selectedNodeIds, "y", "end")}
+            />
+          </div>
+        );
+      })()}
 
       {paneMenu && (
         <ContextMenu x={paneMenu.x} y={paneMenu.y} items={paneMenuItems} onClose={() => setPaneMenu(null)} />
