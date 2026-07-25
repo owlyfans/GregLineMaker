@@ -22,19 +22,19 @@ export function tierVoltage(tier?: string): number | undefined {
   return tier ? TIER_VOLTAGE[tier] : undefined;
 }
 
-// Approximate, not pulled from the game's actual tier colors pixel-for-pixel - picked from this
-// app's own existing palette (already used elsewhere for badges/accents) so a tier badge fits in
-// visually rather than introducing a new one-off set of colors.
+// Mid-stop of TIER_GRADIENT_STOPS below (the primary/vivid shade) for tiers with real logo source
+// data (see ui-examples/GregLineMakerTierColors/*.svg) - flat approximations, picked from this
+// app's own existing palette, for the tiers without a logo file yet.
 const TIER_COLOR: Record<string, string> = {
   ULV: "#8b93a3",
-  LV: "#e2694f",
-  MV: "#5b9dd9",
-  HV: "#e2954f",
-  EV: "#5fb87a",
-  IV: "#6fd0d6",
-  LuV: "#a696d6",
-  ZPM: "#c79cf0",
-  UV: "#e0c14a",
+  LV: "#FCA462",
+  MV: "#53F9F9",
+  HV: "#F9A600",
+  EV: "#FC4CFC",
+  IV: "#5353F9",
+  LuV: "#F953F9",
+  ZPM: "#FC7E7E",
+  UV: "#00A6A6",
   UHV: "#e2786f",
   UEV: "#f0c26a",
   UIV: "#6fe2ae",
@@ -45,6 +45,30 @@ const TIER_COLOR: Record<string, string> = {
 
 export function tierColor(tier?: string): string {
   return (tier && TIER_COLOR[tier]) || "#8b93a3";
+}
+
+// Vertical (top/mid/bottom) gradient stops lifted straight from this app's actual tier logo
+// artwork (see ui-examples/GregLineMakerTierColors/*.svg - source of truth, not guessed). Only
+// covers the tiers a logo has been provided for; tierGradient() below falls back to a flat
+// TIER_COLOR repeat for the rest.
+const TIER_GRADIENT_STOPS: Record<string, [string, string, string]> = {
+  LV: ["#FCCA6D", "#FCA462", "#4F3F33"],
+  MV: ["#B3FBFC", "#53F9F9", "#41C5C5"],
+  HV: ["#FCE661", "#F9A600", "#C38100"],
+  EV: ["#7E037E", "#FC4CFC", "#7E037E"],
+  IV: ["#5F85FC", "#5353F9", "#4848D7"],
+  LuV: ["#FC9AFC", "#F953F9", "#C846C8"],
+  ZPM: ["#F95353", "#FC7E7E", "#CC4949"],
+  UV: ["#00FCFC", "#00A6A6", "#037E7E"],
+};
+
+/** CSS `background-image` gradient recreating this app's tier logo artwork, top-to-bottom to match
+ * the source SVGs' own vertical gradient direction. Falls back to a flat repeat of `tierColor` for
+ * tiers without logo source data yet. */
+export function tierGradient(tier?: string): string {
+  const stops = tier ? TIER_GRADIENT_STOPS[tier] : undefined;
+  const [top, mid, bottom] = stops ?? [tierColor(tier), tierColor(tier), tierColor(tier)];
+  return `linear-gradient(180deg, ${top} 0%, ${mid} 50%, ${bottom} 100%)`;
 }
 
 // Order matters here - index = rank on the voltage ladder, used by the overclock math below.

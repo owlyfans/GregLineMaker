@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useChainStore } from "../state/chainStore";
 import { useIconStore } from "../state/iconStore";
 import { resolveMachineIconId } from "../lib/machineIcon";
+import { tierGradient } from "../lib/gtTiers";
 import { summarizeChain, type SummaryItemEntry, type SummaryMachineEntry } from "../lib/chainSummary";
 import { computeFinalOutputTimes, formatDuration, type FinalOutputTime } from "../lib/productionTime";
 import type { RecipeDatabase } from "../types/recipe";
@@ -142,6 +143,7 @@ function MachineSection({
                 label={e.label}
                 size={32}
                 topBadge={e.tier}
+                topBadgeGradient={e.tier ? tierGradient(e.tier) : undefined}
                 cornerBadge={e.count}
               />
               <span className="summary-row-label">{e.label}</span>

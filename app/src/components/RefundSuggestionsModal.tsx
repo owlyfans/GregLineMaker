@@ -3,6 +3,7 @@ import type { RecipeDatabase } from "../types/recipe";
 import type { RefundPath } from "../solver/refund";
 import { humanizeMachine, type NodeKind } from "../solver/solve";
 import { resolveMachineIconId } from "../lib/machineIcon";
+import { tierGradient } from "../lib/gtTiers";
 import { useIconStore } from "../state/iconStore";
 import { Modal } from "./Modal";
 import { IconSlot } from "./IconSlot";
@@ -101,7 +102,13 @@ export function RefundSuggestionsModal({
                         <div className="refund-path-step">
                           <div className="refund-path-step-title">Step {j + 1}</div>
                           <div className="refund-path-machine">
-                            <IconSlot id={machineIconId} label={machineLabel} size={20} topBadge={step.recipe.tier} />
+                            <IconSlot
+                              id={machineIconId}
+                              label={machineLabel}
+                              size={20}
+                              topBadge={step.recipe.tier}
+                              topBadgeGradient={step.recipe.tier ? tierGradient(step.recipe.tier) : undefined}
+                            />
                             {machineLabel}
                           </div>
                           <RecipeCard

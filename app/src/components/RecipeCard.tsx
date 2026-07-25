@@ -1,5 +1,5 @@
 import type { Recipe, RecipeDatabase, RecipeIo } from "../types/recipe";
-import { formatRecipeSeconds, tierColor, tierVoltage } from "../lib/gtTiers";
+import { formatRecipeSeconds, tierGradient, tierVoltage } from "../lib/gtTiers";
 import { isConfigItem } from "../solver/solve";
 import { IconSlot } from "./IconSlot";
 
@@ -108,7 +108,16 @@ export function RecipeCard({ recipe, db, highlight, compact = false }: RecipeCar
             )}
           </div>
           {recipe.tier && (
-            <span className="recipe-card-tier" style={{ color: tierColor(recipe.tier) }}>
+            <span
+              className="recipe-card-tier"
+              style={{
+                backgroundImage: tierGradient(recipe.tier),
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
               {recipe.tier}
             </span>
           )}

@@ -2,6 +2,7 @@ import type { MachineNodeData } from "../../types/chain";
 import { useChainStore } from "../../state/chainStore";
 import { useIconStore } from "../../state/iconStore";
 import { resolveMachineIconId } from "../../lib/machineIcon";
+import { tierGradient } from "../../lib/gtTiers";
 import { IconSlot } from "../IconSlot";
 import { NodeHandles } from "./NodeHandles";
 
@@ -22,6 +23,7 @@ export function MachineNode({ id, data, selected }: { id: string; data: MachineN
           label={data.label}
           size={48}
           topBadge={data.tier}
+          topBadgeGradient={data.tier ? tierGradient(data.tier) : undefined}
           cornerBadge={data.parallelCount && data.parallelCount > 1 ? `${data.parallelCount}x` : undefined}
         />
         <div className="machine-node-caption">
