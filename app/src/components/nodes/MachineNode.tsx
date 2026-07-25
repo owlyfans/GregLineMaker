@@ -17,10 +17,13 @@ export function MachineNode({ id, data, selected }: { id: string; data: MachineN
   const bottleneck = useChainStore((s) => s.bottleneckNodeIds.has(id));
   const iconId = resolveMachineIconId(icons, data.machineId, data.tier);
   const usesCoil = !!data.machineId && COIL_MACHINE_TYPES.has(data.machineId);
-  const coil = usesCoil && data.coilTier ? COIL_TYPES.find((c) => c.id === data.coilTier) : undefined;
-  const machineTemp = coil ? coilMachineTemperature(coil.id, data.tier) : undefined;
+  const coil = data.coilTier ? COIL_TYPES.find((c) => c.id === data.coilTier) : undefined;
+  const machineTemp = usesCoil && coil ? coilMachineTemperature(coil.id, data.tier) : undefined;
+  // Also warns when no coil is picked at all, not just an insufficient one - a coil multiblock
+  // always has SOME coil in-game, so "unset" is really "unknown, can't confirm it'll run" rather
+  // than nothing to report.
   const insufficientCoil =
-    machineTemp !== undefined && data.recipeHeatRequirement !== undefined && machineTemp < data.recipeHeatRequirement;
+    usesCoil && data.recipeHeatRequirement !== undefined && (machineTemp === undefined || machineTemp < data.recipeHeatRequirement);
   return (
     <div
       className={`flow-node machine-node${selected ? " node-selected" : ""}${highlighted ? " summary-highlighted" : ""}${bottleneck ? " bottleneck-flagged" : ""}`}
@@ -39,9 +42,12 @@ export function MachineNode({ id, data, selected }: { id: string; data: MachineN
         <div className="machine-node-caption">
           <div className="machine-node-label">{data.label}</div>
           {data.sublabel && <div className="machine-node-sublabel">{data.sublabel}</div>}
-          {coil && machineTemp !== undefined && (
-            <div className="machine-node-sublabel" style={insufficientCoil ? { color: INSUFFICIENT_COIL_COLOR } : undefined}>
-              {coil.label} &middot; {machineTemp.toLocaleString()}K
+          {usesCoil && (coil || insufficientCoil) && (
+            <div
+              className="machine-node-sublabel"
+              style={insufficientCoil ? { color: INSUFFICIENT_COIL_COLOR, fontWeight: 600 } : undefined}
+            >
+              {coil && machineTemp !== undefined ? `${coil.label} · ${machineTemp.toLocaleString()}K` : "No coil selected"}
               {insufficientCoil && ` (needs ${data.recipeHeatRequirement!.toLocaleString()}K+)`}
             </div>
           )}

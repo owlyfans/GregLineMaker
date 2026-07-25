@@ -1531,6 +1531,14 @@
   color: #6b7280;
 }
 
+/* Same red used elsewhere for "this needs attention" (see .bottleneck-flagged/MachineNode's
+ * insufficient-coil text) - the selected tier/coil genuinely can't run the recipe, not just a
+ * suboptimal choice. */
+.add-node-field-warning {
+  color: #ff2d55;
+  font-weight: 600;
+}
+
 .add-node-textarea {
   resize: vertical;
   min-height: 70px;

@@ -40,6 +40,9 @@ export function EditNodeModal({ db, data, recipe, onClose, onSave }: EditNodeMod
   const minTierIndex = minTier ? TIER_ORDER.indexOf(minTier) : -1;
   const usesCoil = !!machineId && COIL_MACHINE_TYPES.has(machineId);
   const minCoil = usesCoil && recipe?.heatRequirement !== undefined ? minimumCoilFor(recipe.heatRequirement, tier || undefined) : undefined;
+  const currentTemp = usesCoil && coilTier ? coilMachineTemperature(coilTier, tier || undefined) : undefined;
+  const insufficientCurrent =
+    usesCoil && recipe?.heatRequirement !== undefined && (currentTemp === undefined || currentTemp < recipe.heatRequirement);
 
   // Every distinct machine the recipe database actually knows about - picking from this (instead
   // of a free-text name) keeps a machine node's label/icon tied to a real GTCEu machine, the same
@@ -170,6 +173,12 @@ export function EditNodeModal({ db, data, recipe, onClose, onSave }: EditNodeMod
                     );
                   })}
                 </select>
+                {insufficientCurrent && (
+                  <span className="add-node-field-hint add-node-field-warning">
+                    &#9888; {coilTier ? `Selected coil only reaches ${currentTemp}K` : "No coil selected"} - this
+                    recipe needs {recipe!.heatRequirement}K+ and won't run below that.
+                  </span>
+                )}
                 {minCoil && (
                   <span className="add-node-field-hint">
                     This recipe needs at least a {minCoil.label} coil ({recipe!.heatRequirement}K).
