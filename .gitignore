@@ -1,0 +1,31 @@
+# mod/ and resources/ are their own separate git repositories nested in this same working
+# directory (see CLAUDE.md) - not submodules, just plain ignored so their .git/ and content never
+# get swept into this repo.
+mod/
+resources/
+
+# Generated pipeline output - regenerated locally from mod/'s dump, then synced into resources/
+# (see resources/README.md) rather than committed here. See CLAUDE.md's pipeline/ "Gotcha".
+data/recipes.json
+app/public/data/recipes.json
+app/public/data/icons.json
+app/public/icons/
+
+# Node
+node_modules/
+
+# Build output
+app/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ad-hoc dev/testing screenshots dropped at the repo root - not project assets (see CLAUDE.md's
+# chain-example.json/example-fixed.json for the actual intentional reference material).
+/Screenshot*.png
+
+# IDE
+.idea/
+.vscode/
+*.iml

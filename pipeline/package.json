@@ -1,0 +1,14 @@
+{
+  "name": "greglinemaker-pipeline",
+  "version": "1.0.0",
+  "description": "Turns the greglinedump mod's raw dump into GregLineMaker's data/recipes.json",
+  "main": "build.mjs",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "adm-zip": "^0.6.0"
+  }
+}

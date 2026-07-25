@@ -1,0 +1,783 @@
+{
+  "version": "31.0.2",
+  "pages": [
+    {
+      "id": "w3wOk5xgu9luzG9Nj00z",
+      "name": "Page-1",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Crushed Bauxite\n24",
+          "html": "Crushed Bauxite<div>24</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-12",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-2",
+          "target": "xtS-AojWMIKCySIH10Ln-11"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-2",
+          "type": "node",
+          "parent": "1",
+          "label": "HV Mixer"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-7",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-3",
+          "target": "xtS-AojWMIKCySIH10Ln-2"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-3",
+          "type": "node",
+          "parent": "1",
+          "label": "Soda Ash Dust\n12",
+          "html": "Soda Ash Dust<div>12</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-9",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-4",
+          "target": "xtS-AojWMIKCySIH10Ln-2"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-4",
+          "type": "node",
+          "parent": "1",
+          "label": "Calcium Chloride\n6",
+          "html": "Calcium Chloride<div>6</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-6",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-1",
+          "target": "xtS-AojWMIKCySIH10Ln-2"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-14",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-11",
+          "target": "xtS-AojWMIKCySIH10Ln-13"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-11",
+          "type": "node",
+          "parent": "1",
+          "label": "Bauxite Slurry\n4b",
+          "html": "Bauxite Slurry<div>4b</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-16",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-13",
+          "target": "xtS-AojWMIKCySIH10Ln-15"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-13",
+          "type": "node",
+          "parent": "1",
+          "label": "Cracker\n16b + 1b",
+          "html": "Cracker<div>16b + 1b</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-18",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-15",
+          "target": "xtS-AojWMIKCySIH10Ln-17"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-15",
+          "type": "node",
+          "parent": "1",
+          "label": "Cracked Bauxite Slurry"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-46",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-17",
+          "target": "xtS-AojWMIKCySIH10Ln-44"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-13",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-17",
+          "target": "xtS-AojWMIKCySIH10Ln-45"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-19",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-17",
+          "target": "xtS-AojWMIKCySIH10Ln-49"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-17",
+          "type": "node",
+          "parent": "1",
+          "label": "Chemical Reactor"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-43",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-19",
+          "target": "xtS-AojWMIKCySIH10Ln-17"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-19",
+          "type": "node",
+          "parent": "1",
+          "label": "Sulfuric Acid\n1b",
+          "html": "Sulfuric Acid<div>1b</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-22",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-20",
+          "target": "xtS-AojWMIKCySIH10Ln-13"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-20",
+          "type": "node",
+          "parent": "1",
+          "label": "Steam"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-24",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-23",
+          "target": "xtS-AojWMIKCySIH10Ln-3"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-25",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-23",
+          "target": "xtS-AojWMIKCySIH10Ln-4"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-23",
+          "type": "node",
+          "parent": "1",
+          "label": "EBF\nResults in SA 6 + CC 6",
+          "html": "EBF<div>Results in SA 6 + CC 6&nbsp;</div>"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-2",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-26"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-26",
+          "type": "node",
+          "parent": "1",
+          "label": "Calcite Dust\n5",
+          "html": "Calcite Dust<div>5</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-29",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-27",
+          "target": "xtS-AojWMIKCySIH10Ln-23"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-27",
+          "type": "node",
+          "parent": "1",
+          "label": "Salt Dust\n4",
+          "html": "Salt Dust<div>4</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-28",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-26",
+          "target": "xtS-AojWMIKCySIH10Ln-23"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-65",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-44",
+          "target": "xtS-AojWMIKCySIH10Ln-64"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-44",
+          "type": "node",
+          "parent": "1",
+          "label": "Bauxite Sludge\n2.5b",
+          "html": "Bauxite Sludge<div>2.5b</div>"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-14",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-45",
+          "target": "7B_RqUoyQjIveNWEfJfU-9"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-45",
+          "type": "node",
+          "parent": "1",
+          "label": "Sulfur Trioxide (REFUND SULFURIC ACID)\n1b",
+          "html": "Sulfur Trioxide (REFUND SULFURIC ACID)<div>1b</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-48",
+          "type": "node",
+          "parent": "1",
+          "label": "Aluminium Dust\n24",
+          "html": "Aluminium Dust<div>24</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-51",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-49",
+          "target": "xtS-AojWMIKCySIH10Ln-50"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-20",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-49",
+          "target": "xtS-AojWMIKCySIH10Ln-48"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-49",
+          "type": "node",
+          "parent": "1",
+          "label": "Bauxite Slag Dust\n8",
+          "html": "Bauxite Slag Dust<div>8</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-57",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-50",
+          "target": "xtS-AojWMIKCySIH10Ln-52"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-50",
+          "type": "node",
+          "parent": "1",
+          "label": "Electromagnetic Separator"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-18",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-52",
+          "target": "xtS-AojWMIKCySIH10Ln-27"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-21",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-52",
+          "target": "xtS-AojWMIKCySIH10Ln-53"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-52",
+          "type": "node",
+          "parent": "1",
+          "label": "Salt (REFUND)\n8",
+          "html": "Salt (REFUND)<div>8</div>"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-22",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-53",
+          "target": "xtS-AojWMIKCySIH10Ln-54"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-53",
+          "type": "node",
+          "parent": "1",
+          "label": "Chromium Dust\n1 (70%)",
+          "html": "Chromium Dust<div>1 (70%)</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-54",
+          "type": "node",
+          "parent": "1",
+          "label": "Neodimium Dust\n1 (30%)",
+          "html": "Neodimium Dust<div>1 (30%)</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-67",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-64",
+          "target": "xtS-AojWMIKCySIH10Ln-66"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-69",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-64",
+          "target": "xtS-AojWMIKCySIH10Ln-68"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-64",
+          "type": "node",
+          "parent": "1",
+          "label": "Distilery"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-1",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-66"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-66",
+          "type": "node",
+          "parent": "1",
+          "label": "Calcite Dust\n10",
+          "html": "Calcite Dust<div>10</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-71",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-68",
+          "target": "xtS-AojWMIKCySIH10Ln-70"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-68",
+          "type": "node",
+          "parent": "1",
+          "label": "Decalcified Bauxite Sludge\n2.5b",
+          "html": "Decalcified Bauxite Sludge<div>2.5b</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-74",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-70",
+          "target": "xtS-AojWMIKCySIH10Ln-73"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-70",
+          "type": "node",
+          "parent": "1",
+          "label": "Centrifuge"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-80",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-73",
+          "target": "xtS-AojWMIKCySIH10Ln-79"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-23",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-73",
+          "target": "xtS-AojWMIKCySIH10Ln-75"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-73",
+          "type": "node",
+          "parent": "1",
+          "label": "Rutile Dust"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-24",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-75",
+          "target": "xtS-AojWMIKCySIH10Ln-76"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-75",
+          "type": "node",
+          "parent": "1",
+          "label": "Gallium"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-25",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-76",
+          "target": "xtS-AojWMIKCySIH10Ln-77"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-76",
+          "type": "node",
+          "parent": "1",
+          "label": "Silicon Dioxide"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-77",
+          "type": "node",
+          "parent": "1",
+          "label": "Iron Dust"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-82",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-79",
+          "target": "xtS-AojWMIKCySIH10Ln-81"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-90",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-79",
+          "target": "xtS-AojWMIKCySIH10Ln-83"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-79",
+          "type": "node",
+          "parent": "1",
+          "label": "Chemical Reactor"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-88",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-81",
+          "target": "xtS-AojWMIKCySIH10Ln-84"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-81",
+          "type": "node",
+          "parent": "1",
+          "label": "Carbon Monoxide\n(REFUND CARBON)",
+          "html": "Carbon Monoxide<div>(REFUND CARBON)</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-89",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-83"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-83",
+          "type": "node",
+          "parent": "1",
+          "label": "Titanium Tetrachloride"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-85",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-84",
+          "target": "xtS-AojWMIKCySIH10Ln-79"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-84",
+          "type": "node",
+          "parent": "1",
+          "label": "Carbon Dust\n2",
+          "html": "Carbon Dust<div>2</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-87",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-86",
+          "target": "xtS-AojWMIKCySIH10Ln-79"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-86",
+          "type": "node",
+          "parent": "1",
+          "label": "Chlorine\n4b",
+          "html": "Chlorine<div>4b</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-94",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-91"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-97",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-91",
+          "target": "xtS-AojWMIKCySIH10Ln-96"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-91",
+          "type": "node",
+          "parent": "1",
+          "label": "EBF"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-93",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-92",
+          "target": "xtS-AojWMIKCySIH10Ln-91"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-92",
+          "type": "node",
+          "parent": "1",
+          "label": "Magnesium Dust\n2",
+          "html": "Magnesium Dust<div>2</div>"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-31",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-95",
+          "target": "7B_RqUoyQjIveNWEfJfU-30"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-95",
+          "type": "node",
+          "parent": "1",
+          "label": "Titanium ingot (HOT)"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-99",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-96",
+          "target": "xtS-AojWMIKCySIH10Ln-98"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-96",
+          "type": "node",
+          "parent": "1",
+          "label": "Magnesium Chloride Dust\n6\n(REFUND MAGNESIUM)",
+          "html": "Magnesium Chloride Dust<div>6</div><div>(REFUND MAGNESIUM)</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-104",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-98",
+          "target": "xtS-AojWMIKCySIH10Ln-103"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-106",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-98",
+          "target": "xtS-AojWMIKCySIH10Ln-105"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-98",
+          "type": "node",
+          "parent": "1",
+          "label": "Chemical Reactor"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-102",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-101",
+          "target": "xtS-AojWMIKCySIH10Ln-98"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-101",
+          "type": "node",
+          "parent": "1",
+          "label": "Sodium Dust\n2",
+          "html": "Sodium Dust<div>2</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-107",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-103",
+          "target": "xtS-AojWMIKCySIH10Ln-92"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-103",
+          "type": "node",
+          "parent": "1",
+          "label": "Magnesium Dust\n2",
+          "html": "Magnesium Dust<div>2</div>"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-109",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-105",
+          "target": "xtS-AojWMIKCySIH10Ln-108"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-105",
+          "type": "node",
+          "parent": "1",
+          "label": "Salt"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-117",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-108",
+          "target": "xtS-AojWMIKCySIH10Ln-115"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-118",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-108",
+          "target": "xtS-AojWMIKCySIH10Ln-111"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-108",
+          "type": "node",
+          "parent": "1",
+          "label": "Electrolyzer"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-119",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-111",
+          "target": "xtS-AojWMIKCySIH10Ln-101"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-111",
+          "type": "node",
+          "parent": "1",
+          "label": "Sodium Dust\nREFUND",
+          "html": "Sodium Dust<br>REFUND"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-4",
+          "type": "edge",
+          "parent": "1",
+          "source": "xtS-AojWMIKCySIH10Ln-115",
+          "target": "xtS-AojWMIKCySIH10Ln-86"
+        },
+        {
+          "id": "xtS-AojWMIKCySIH10Ln-115",
+          "type": "node",
+          "parent": "1",
+          "label": "Chlorine"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-7",
+          "type": "edge",
+          "parent": "1",
+          "source": "7B_RqUoyQjIveNWEfJfU-5",
+          "target": "7B_RqUoyQjIveNWEfJfU-6"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-5",
+          "type": "node",
+          "parent": "1",
+          "label": "Water"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-8",
+          "type": "edge",
+          "parent": "1",
+          "source": "7B_RqUoyQjIveNWEfJfU-6",
+          "target": "xtS-AojWMIKCySIH10Ln-20"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-6",
+          "type": "node",
+          "parent": "1",
+          "label": "Fluid Heater"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-10",
+          "type": "edge",
+          "parent": "1",
+          "source": "7B_RqUoyQjIveNWEfJfU-9",
+          "target": "xtS-AojWMIKCySIH10Ln-19"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-15",
+          "type": "edge",
+          "parent": "1",
+          "source": "7B_RqUoyQjIveNWEfJfU-9",
+          "target": "7B_RqUoyQjIveNWEfJfU-5"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-9",
+          "type": "node",
+          "parent": "1",
+          "label": "Chemical Reactor"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-27",
+          "type": "edge",
+          "parent": "1",
+          "source": "7B_RqUoyQjIveNWEfJfU-26",
+          "target": "7B_RqUoyQjIveNWEfJfU-5"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-26",
+          "type": "node",
+          "parent": "1",
+          "label": "INPUT"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-29",
+          "type": "edge",
+          "parent": "1",
+          "source": "7B_RqUoyQjIveNWEfJfU-28",
+          "target": "xtS-AojWMIKCySIH10Ln-1"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-28",
+          "type": "node",
+          "parent": "1",
+          "label": "INPUT"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-33",
+          "type": "edge",
+          "parent": "1",
+          "source": "7B_RqUoyQjIveNWEfJfU-30",
+          "target": "7B_RqUoyQjIveNWEfJfU-32"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-30",
+          "type": "node",
+          "parent": "1",
+          "label": "Vacuum Freezer"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-32",
+          "type": "node",
+          "parent": "1",
+          "label": "TITANIUM"
+        },
+        {
+          "id": "7B_RqUoyQjIveNWEfJfU-34",
+          "type": "edge",
+          "parent": "1",
+          "source": "7B_RqUoyQjIveNWEfJfU-5",
+          "target": "xtS-AojWMIKCySIH10Ln-2"
+        }
+      ]
+    }
+  ]
+}
