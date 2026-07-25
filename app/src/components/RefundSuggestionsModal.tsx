@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import type { Recipe, RecipeDatabase } from "../types/recipe";
+import type { RecipeDatabase } from "../types/recipe";
 import type { RefundPath } from "../solver/refund";
 import { humanizeMachine, type NodeKind } from "../solver/solve";
 import { resolveMachineIconId } from "../lib/machineIcon";
 import { useIconStore } from "../state/iconStore";
 import { Modal } from "./Modal";
 import { IconSlot } from "./IconSlot";
+import { RecipeCard } from "./RecipeCard";
 
 interface RefundSuggestionsModalProps {
   db: RecipeDatabase;
@@ -18,20 +19,8 @@ interface RefundSuggestionsModalProps {
   onPick: (path: RefundPath) => void;
 }
 
-function resolveName(db: RecipeDatabase, kind: NodeKind, id: string): string {
-  const map = kind === "item" ? db.items : db.fluids;
-  return map[id] ?? id;
-}
-
-/** What this hop needs besides the item being chained through from the previous step - the
- * actual "cost" of taking this step, since the chain view alone hides that. */
-function extraCostFor(recipe: Recipe, chained: { kind: NodeKind; id: string }) {
-  return recipe.inputs.filter((io) => !(io.kind === chained.kind && io.ids.includes(chained.id)));
-}
-
 export function RefundSuggestionsModal({
   db,
-  fromKind,
   fromId,
   fromLabel,
   matchLabelFor,
@@ -95,62 +84,39 @@ export function RefundSuggestionsModal({
             ))}
           </div>
           <ul className="recipe-list">
-            {pathsForTab.map((path, i) => {
-              let chained = { kind: fromKind, id: fromId };
-              return (
-                <li key={i} className="recipe-list-item refund-path-item" onClick={() => onPick(path)}>
-                  <div className="recipe-list-row">
-                    <span className="badge tier-badge">
-                      {path.steps.length} step{path.steps.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  <div className="refund-path-chain">
-                    <span className="refund-path-node">
-                      <IconSlot id={fromId} label={fromLabel} size={34} />
-                      <span className="io-chip-label">{fromLabel}</span>
-                    </span>
-                    {path.steps.map((step, j) => {
-                      const cost = extraCostFor(step.recipe, chained);
-                      chained = { kind: step.producedKind, id: step.producedId };
-                      const machineIconId = resolveMachineIconId(icons, step.recipe.machine, step.recipe.tier);
-                      const machineLabel = humanizeMachine(step.recipe.machine);
-                      return (
-                        <span key={j} className="refund-path-hop">
-                          <span className="refund-path-arrow">&rarr;</span>
-                          <span className="refund-path-step">
-                            <span className="refund-path-machine">
-                              <IconSlot id={machineIconId} label={machineLabel} size={22} topBadge={step.recipe.tier} />
-                              {machineLabel}
-                            </span>
-                            {cost.length > 0 && (
-                              <span className="refund-path-cost">
-                                {cost.map((io, k) => (
-                                  <span key={k} className="refund-path-cost-chip">
-                                    <IconSlot
-                                      id={io.ids[0]}
-                                      label={resolveName(db, io.kind, io.ids[0])}
-                                      size={22}
-                                      cornerBadge={io.amount}
-                                    />
-                                    {resolveName(db, io.kind, io.ids[0])}
-                                    {k < cost.length - 1 ? ", " : ""}
-                                  </span>
-                                ))}
-                              </span>
-                            )}
-                          </span>
-                          <span className="refund-path-arrow">&rarr;</span>
-                          <span className="refund-path-node">
-                            <IconSlot id={step.producedId} label={resolveName(db, step.producedKind, step.producedId)} size={34} />
-                            <span className="io-chip-label">{resolveName(db, step.producedKind, step.producedId)}</span>
-                          </span>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </li>
-              );
-            })}
+            {pathsForTab.map((path, i) => (
+              <li key={i} className="recipe-list-item refund-path-item" onClick={() => onPick(path)}>
+                <div className="recipe-list-row">
+                  <span className="badge tier-badge">
+                    {path.steps.length} step{path.steps.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="refund-path-chain">
+                  {path.steps.map((step, j) => {
+                    const machineIconId = resolveMachineIconId(icons, step.recipe.machine, step.recipe.tier);
+                    const machineLabel = humanizeMachine(step.recipe.machine);
+                    return (
+                      <div key={j} className="refund-path-hop">
+                        {j > 0 && <div className="refund-path-divider" />}
+                        <div className="refund-path-step">
+                          <div className="refund-path-step-title">Step {j + 1}</div>
+                          <div className="refund-path-machine">
+                            <IconSlot id={machineIconId} label={machineLabel} size={20} topBadge={step.recipe.tier} />
+                            {machineLabel}
+                          </div>
+                          <RecipeCard
+                            recipe={step.recipe}
+                            db={db}
+                            compact
+                            highlight={{ kind: step.producedKind, id: step.producedId }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </li>
+            ))}
           </ul>
         </>
       )}

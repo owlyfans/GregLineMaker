@@ -133,7 +133,11 @@ function App() {
 
   return (
     <div className="app-shell">
-      <h1 className="app-title-overlay">GregLineMaker</h1>
+      <h1 className="app-title-overlay">
+        <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="app-title-logo" />
+        GregLineMaker
+        <span className="app-title-credit">by OwlyFans</span>
+      </h1>
 
       {!summaryOpen && (
         <Tooltip label="Chain summary" placement="right">

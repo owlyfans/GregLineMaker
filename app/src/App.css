@@ -8,6 +8,17 @@
   position: relative;
 }
 
+/* Applied to EVERY portaled tooltip regardless of `bare` (see Tooltip.tsx) - this is what actually
+   keeps tooltips above modals (.modal-overlay is z-index: 60). The floating div floating-ui portals
+   to document.body needs its OWN z-index to win the stacking comparison outright; when `bare`
+   skipped .app-tooltip entirely, that div had no class and fell back to z-index:auto, which drops
+   it into plain DOM order instead - easy to lose against a later-mounted modal. Comfortably above
+   every other z-index in this file (highest otherwise is 60) without resorting to an unreadable
+   near-INT_MAX value. */
+.floating-tooltip-root {
+  z-index: 2000;
+}
+
 /* App-wide custom tooltip (see components/Tooltip.tsx) - replaces native `title="..."` (an
    unstyleable, slow-to-appear OS popup with no collision awareness, so it'll happily overflow the
    left/right edge of the screen for anything near either side). floating-ui computes `position`/
@@ -26,8 +37,41 @@
   white-space: nowrap;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
   pointer-events: none;
-  z-index: 1000;
   animation: edge-tooltip-in 0.12s ease-out;
+}
+
+/* Recreates Minecraft's own item/fluid tooltip chrome (see ui-examples/item-tooltip-example.png,
+   fluid-tooltip-example.png and components/ItemTooltipContent.tsx) - a near-black body with the
+   game's signature purple gradient border, sharp corners (no radius, matching the reference).
+   Rendered "bare" (see Tooltip.tsx) so it supplies all its own chrome rather than .app-tooltip's. */
+.mc-tooltip {
+  background: #100010;
+  border: 2px solid;
+  border-image: linear-gradient(180deg, #6b3fc7, #28004d) 1;
+  padding: 6px 10px;
+  min-width: 120px;
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  pointer-events: none;
+  animation: edge-tooltip-in 0.08s ease-out;
+}
+
+.mc-tooltip-title {
+  color: #ffffff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mc-tooltip-id {
+  color: #8b93a3;
+  white-space: nowrap;
+}
+
+.mc-tooltip-mod {
+  color: #7b7bf0;
+  font-style: italic;
+  white-space: nowrap;
 }
 
 .app-title-overlay {
@@ -36,11 +80,27 @@
   left: 16px;
   z-index: 10;
   margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   font-size: 1.2rem;
   font-weight: 700;
   color: #fff;
   background: transparent;
   pointer-events: none;
+}
+
+.app-title-logo {
+  width: 22px;
+  height: 22px;
+  align-self: center;
+  image-rendering: pixelated;
+}
+
+.app-title-credit {
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: #9aa2b1;
 }
 
 .summary-toggle-btn {
@@ -748,8 +808,8 @@
 }
 
 .icon-slot-fallback.icon-slot-loading {
-  width: 65%;
-  height: 65%;
+  width: 98%;
+  height: 98%;
   border-radius: 3px;
   background: #2a2f3a;
   animation: icon-shimmer 1.2s ease-in-out infinite;
@@ -1040,57 +1100,45 @@
 .refund-path-chain {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.82rem;
-}
-
-.refund-path-node {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  width: 68px;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .refund-path-hop {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
 }
 
-.refund-path-arrow {
-  color: #6fc7e2;
+/* Separates consecutive steps in a refund path - a plain vertical rule rather than a directional
+   arrow, since each step's own RecipeCard already draws its own input->output arrow internally. */
+.refund-path-divider {
+  width: 1px;
+  align-self: stretch;
+  background: #2f3440;
+  flex-shrink: 0;
 }
 
 .refund-path-step {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  gap: 6px;
+}
+
+.refund-path-step-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b93a3;
 }
 
 .refund-path-machine {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
-  color: #c3c9d4;
-}
-
-.refund-path-cost {
   font-size: 0.72rem;
   color: #9aa2b1;
-  font-weight: 400;
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.refund-path-cost-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .btn {
@@ -1381,55 +1429,70 @@
   color: #e0c14a;
 }
 
-.recipe-inputs {
+/* Recreates GTCEu's own in-game recipe-viewer layout (see components/RecipeCard.tsx and
+   ui-examples/ for the reference screenshots) - a grid of input slots, an arrow, a grid of output
+   slots, and a Duration/Total EU/Usage/tier footer, in this app's existing dark theme rather than
+   the game's own light-gray GUI chrome. */
+.recipe-card {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 10px;
 }
 
-.recipe-input-chip {
-  background: #232833;
-  border-radius: 8px;
-  padding: 6px 8px 5px;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
+.recipe-card.compact {
   gap: 4px;
-  width: 76px;
-  box-sizing: border-box;
 }
 
-.io-chip-label {
-  font-size: 0.68rem;
-  color: #9aa2b1;
-  text-align: center;
-  line-height: 1.15;
-}
-
-.recipe-byproducts {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #262a33;
+.recipe-card-io {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.recipe-byproducts-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #6b7280;
-  align-self: center;
-}
-
-.recipe-byproduct-chip {
-  display: inline-flex;
-  flex-direction: column;
   align-items: center;
-  gap: 3px;
-  width: 64px;
+  gap: 12px;
+}
+
+.recipe-card.compact .recipe-card-io {
+  gap: 6px;
+}
+
+.recipe-card-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.recipe-card-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.recipe-card-slot-highlight {
+  box-shadow: 0 0 0 2px #5b9dd9;
+}
+
+.recipe-card-stats {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #262a33;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: #9aa2b1;
+}
+
+.recipe-card-stats-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recipe-card-tier {
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .add-node-form {
