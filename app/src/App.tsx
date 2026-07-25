@@ -17,7 +17,7 @@ function randomPosition() {
 }
 
 function App() {
-  const { db, loading, error } = useRecipeDatabase();
+  const { db, loading, error, progress } = useRecipeDatabase();
   const [addNodeOpen, setAddNodeOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -40,6 +40,8 @@ function App() {
   const selectedCount = useChainStore((s) => s.nodes.filter((n) => n.selected).length);
   const selectedEdgeCount = useChainStore((s) => s.edges.filter((e) => e.selected).length);
   const loadIcons = useIconStore((s) => s.load);
+  const iconsLoading = useIconStore((s) => s.loading);
+  const iconsError = useIconStore((s) => s.error);
 
   const bottlenecks = useMemo(() => computeBottlenecks(nodes, edges, db ?? undefined), [nodes, edges, db]);
 
@@ -165,13 +167,35 @@ function App() {
         </Tooltip>
       )}
 
-      <main className="chain-area">{db && <ChainView db={db} />}</main>
+      <main className="chain-area">
+        {db ? (
+          <ChainView db={db} />
+        ) : (
+          <div className="initial-loading">
+            <div className="initial-loading-spinner" />
+            <div className="initial-loading-text">
+              {error ? `Failed to load recipe database: ${error}` : "Loading recipe database..."}
+            </div>
+            {!error && progress !== null && (
+              <>
+                <div className="initial-loading-bar">
+                  <div className="initial-loading-bar-fill" style={{ width: `${progress}%` }} />
+                </div>
+                <div className="initial-loading-percent">{progress}%</div>
+              </>
+            )}
+          </div>
+        )}
+      </main>
 
       {selectedCount === 0 && selectedEdgeCount === 0 && (
         <PrimaryToolbar
           dbReady={!!db}
           loading={loading}
           error={error}
+          progress={progress}
+          iconsLoading={iconsLoading}
+          iconsError={iconsError}
           canSave={nodeCount > 0}
           shareStatus={shareStatus}
           onAddNode={() => setAddNodeOpen(true)}

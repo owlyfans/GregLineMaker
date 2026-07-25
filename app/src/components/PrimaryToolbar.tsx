@@ -4,6 +4,10 @@ interface PrimaryToolbarProps {
   dbReady: boolean;
   loading: boolean;
   error: string | null;
+  /** 0-100 while recipes.json streams down (see useRecipeDatabase), null if not computable. */
+  progress: number | null;
+  iconsLoading: boolean;
+  iconsError: string | null;
   canSave: boolean;
   shareStatus: string | null;
   onAddNode: () => void;
@@ -21,6 +25,9 @@ export function PrimaryToolbar({
   dbReady,
   loading,
   error,
+  progress,
+  iconsLoading,
+  iconsError,
   canSave,
   shareStatus,
   onAddNode,
@@ -31,8 +38,14 @@ export function PrimaryToolbar({
 }: PrimaryToolbarProps) {
   return (
     <div className="floating-toolbar">
-      {loading && <span className="floating-toolbar-status">Loading recipe database...</span>}
+      {loading && (
+        <span className="floating-toolbar-status">
+          Loading recipe database{progress !== null ? ` (${progress}%)` : "..."}
+        </span>
+      )}
       {error && <span className="floating-toolbar-status">Failed to load recipes.json: {error}</span>}
+      {!loading && iconsLoading && <span className="floating-toolbar-status">Loading icons...</span>}
+      {iconsError && <span className="floating-toolbar-status">Failed to load icons.json: {iconsError}</span>}
       {shareStatus && <span className="floating-toolbar-status">{shareStatus}</span>}
       <Tooltip label="Add node">
         <button type="button" className="floating-toolbar-btn primary" disabled={!dbReady} onClick={onAddNode}>

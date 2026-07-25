@@ -263,6 +263,63 @@
   position: relative;
 }
 
+/* Shown in place of the canvas while recipes.json is still streaming down from
+   GregLineMakerResources (~30MB+ - see useRecipeDatabase) - without this the whole chain-area is
+   just blank until it's done, which reads as broken rather than "working on it" for however long a
+   file that size takes on a slow connection. */
+.initial-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #8b93a3;
+}
+
+@keyframes initial-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.initial-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid #2f3440;
+  border-top-color: #5b9dd9;
+  animation: initial-loading-spin 0.8s linear infinite;
+}
+
+.initial-loading-text {
+  font-size: 0.9rem;
+  max-width: 420px;
+  text-align: center;
+}
+
+.initial-loading-bar {
+  width: 220px;
+  height: 6px;
+  border-radius: 3px;
+  background: #22242e;
+  overflow: hidden;
+}
+
+.initial-loading-bar-fill {
+  height: 100%;
+  background: #5b9dd9;
+  border-radius: 3px;
+  transition: width 0.15s ease;
+}
+
+.initial-loading-percent {
+  font-size: 0.78rem;
+  color: #5b9dd9;
+  font-weight: 600;
+}
+
 .chain-view {
   width: 100%;
   height: 100%;
@@ -675,6 +732,27 @@
   font-weight: 800;
   line-height: 1;
   user-select: none;
+}
+
+/* Shown instead of the fallback monogram letter while icons.json itself is still loading (see
+   IconSlot/iconStore) - a pulsing blank skeleton block, so an icon that just hasn't resolved yet
+   doesn't look identical to one that genuinely has none (most fluids, some tinted materials). */
+@keyframes icon-shimmer {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.icon-slot-fallback.icon-slot-loading {
+  width: 65%;
+  height: 65%;
+  border-radius: 3px;
+  background: #2a2f3a;
+  animation: icon-shimmer 1.2s ease-in-out infinite;
 }
 
 .icon-slot-badge {

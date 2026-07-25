@@ -22,14 +22,20 @@ interface IconSlotProps {
  * filling most of it and small outlined badges in the corners - icon first, text is a caption. */
 export function IconSlot({ id, label, size = 40, topBadge, cornerBadge, className = "" }: IconSlotProps) {
   const src = useIconStore((s) => (id ? s.icons[id] : undefined));
+  const iconsLoading = useIconStore((s) => s.loading);
+  // While icons.json itself is still loading, an unresolved id might just not have its answer yet
+  // rather than genuinely having no icon (most fluids, some tinted materials) - shimmer the
+  // fallback tile for that duration so it reads as "still loading" instead of looking identical to
+  // the permanent no-icon case.
+  const stillResolving = iconsLoading && !src;
   return (
     <Tooltip label={label}>
       <div className={`icon-slot ${className}`} style={{ width: size, height: size }}>
         {src ? (
           <img src={src} alt="" className="icon-slot-img" style={{ width: size * 0.72, height: size * 0.72 }} />
         ) : (
-          <span className="icon-slot-fallback" style={{ fontSize: size * 0.4 }}>
-            {(label ?? "?").trim().charAt(0).toUpperCase() || "?"}
+          <span className={`icon-slot-fallback${stillResolving ? " icon-slot-loading" : ""}`} style={{ fontSize: size * 0.4 }}>
+            {stillResolving ? "" : (label ?? "?").trim().charAt(0).toUpperCase() || "?"}
           </span>
         )}
         {topBadge !== undefined && topBadge !== null && (
