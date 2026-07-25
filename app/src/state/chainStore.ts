@@ -235,8 +235,16 @@ interface ChainStoreState {
    */
   rescaleFromOutput: (nodeId: string, newAmount: number, resolveRecipe: (recipeId: string) => Recipe | undefined) => void;
 
-  /** Replaces the whole canvas with a previously saved chain (see state/persistence.ts). */
+  /** Replaces the whole canvas with a previously saved chain (see state/persistence.ts). Checkpoints
+   * first, so undo can get back to whatever was on screen a moment ago - used by file-Load and
+   * share-link import. */
   loadChain: (nodes: FlowNode[], edges: Edge[]) => void;
+
+  /** Replaces the whole canvas for a page switch (see state/pagesStore.ts) - unlike loadChain, does
+   * NOT checkpoint: the outgoing page's content has nothing to do with the incoming page's undo
+   * history, so past/future and other transient per-canvas state (highlights/bottleneck rings/focus
+   * request) are cleared outright instead of pushed onto the stack. */
+  hardLoad: (nodes: FlowNode[], edges: Edge[]) => void;
 
   clear: () => void;
 }
@@ -853,6 +861,19 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
   loadChain: (nodes, edges) => {
     get().checkpoint();
     set({ nodes, edges });
+  },
+
+  hardLoad: (nodes, edges) => {
+    set({
+      nodes,
+      edges,
+      past: [],
+      future: [],
+      highlightedNodeIds: new Set(),
+      bottleneckNodeIds: new Set(),
+      bottleneckEdgeIds: new Set(),
+      focusRequest: null,
+    });
   },
 
   clear: () => {

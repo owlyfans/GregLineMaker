@@ -4,11 +4,13 @@ import { ChainView } from "./components/ChainView";
 import { AddNodeModal } from "./components/AddNodeModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { PrimaryToolbar } from "./components/PrimaryToolbar";
+import { PageTabs } from "./components/PageTabs";
 import { ChainSummaryPanel } from "./components/ChainSummaryPanel";
 import { Tooltip } from "./components/Tooltip";
 import { useRecipeDatabase } from "./state/useRecipeDatabase";
 import { useChainStore } from "./state/chainStore";
-import { downloadChain, loadFromLocalStorage, readChainFile, saveToLocalStorage } from "./state/persistence";
+import { usePagesStore } from "./state/pagesStore";
+import { chainFilename, downloadChain, readChainFile, savePage } from "./state/persistence";
 import { buildShareUrl, clearShareHash, readShareUrl } from "./state/shareLink";
 import { useIconStore } from "./state/iconStore";
 import { computeBottlenecks } from "./lib/productionTime";
@@ -45,6 +47,14 @@ function App() {
   const iconsLoading = useIconStore((s) => s.loading);
   const iconsError = useIconStore((s) => s.error);
 
+  const pages = usePagesStore((s) => s.pages);
+  const activePageId = usePagesStore((s) => s.activePageId);
+  const pagesReady = usePagesStore((s) => s.ready);
+  const switchPage = usePagesStore((s) => s.switchPage);
+  const createPage = usePagesStore((s) => s.createPage);
+  const renamePage = usePagesStore((s) => s.renamePage);
+  const deletePage = usePagesStore((s) => s.deletePage);
+
   const bottlenecks = useMemo(() => computeBottlenecks(nodes, edges, db ?? undefined), [nodes, edges, db]);
 
   // Which nodes/edges the "!" toggle should ring/stroke red right now - just the bottleneck
@@ -77,35 +87,38 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [summaryOpen]);
 
-  // Restore a shared link's chain first (an explicit "open this chain" action), falling back to
-  // the last autosaved canvas only if there's no share hash and nothing's loaded yet already -
-  // then keep autosaving on every change. The share hash is cleared once consumed so a later
-  // refresh resumes from autosave instead of re-loading the (possibly now-stale) shared chain.
+  // Load page metadata + the active page's chain first (sync, no flicker - migrates the old
+  // single-canvas autosave into a first page on a user's first run under this scheme). Then, a
+  // shared link's chain becomes a brand-new page (never clobbers whatever page was already active)
+  // rather than the old "overwrite whatever's on screen" behavior - the share hash is cleared once
+  // consumed so a later refresh doesn't re-import the same (possibly now-stale) shared chain. Keep
+  // autosaving the active page on every change.
   useEffect(() => {
+    usePagesStore.getState().init();
     (async () => {
       const shared = await readShareUrl();
       if (shared) {
-        loadChain(shared.nodes, shared.edges);
+        const id = usePagesStore.getState().createPage("Shared chain");
+        useChainStore.getState().hardLoad(shared.nodes, shared.edges);
+        savePage(id, shared.nodes, shared.edges);
         clearShareHash();
-      } else if (useChainStore.getState().nodes.length === 0) {
-        const saved = loadFromLocalStorage();
-        if (saved) loadChain(saved.nodes, saved.edges);
       }
     })();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const unsubscribe = useChainStore.subscribe((state) => {
       clearTimeout(timer);
-      timer = setTimeout(() => saveToLocalStorage(state.nodes, state.edges), 800);
+      timer = setTimeout(() => savePage(usePagesStore.getState().activePageId, state.nodes, state.edges), 800);
     });
     return () => {
       clearTimeout(timer);
       unsubscribe();
     };
-  }, [loadChain]);
+  }, []);
 
   function handleSave() {
     const { nodes, edges } = useChainStore.getState();
-    downloadChain(nodes, edges);
+    const activePage = usePagesStore.getState().pages.find((p) => p.id === usePagesStore.getState().activePageId);
+    downloadChain(nodes, edges, activePage ? chainFilename(activePage.name) : undefined);
   }
 
   async function handleShare() {
@@ -153,6 +166,17 @@ function App() {
         </Tooltip>
       )}
       <ChainSummaryPanel open={summaryOpen} onClose={() => setSummaryOpen(false)} db={db} />
+
+      {pagesReady && (
+        <PageTabs
+          pages={pages}
+          activePageId={activePageId}
+          onSwitch={switchPage}
+          onCreate={createPage}
+          onRename={renamePage}
+          onDelete={deletePage}
+        />
+      )}
 
       {!summaryOpen && bottlenecks.length > 0 && (
         <Tooltip
