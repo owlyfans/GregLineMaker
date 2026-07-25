@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { RecipeDatabase } from "../types/recipe";
+import { useSettingsStore } from "../state/settingsStore";
 import { ItemPicker, type PickerOption } from "./ItemPicker";
 import { QuickAmountButtons } from "./QuickAmountButtons";
 import { Modal } from "./Modal";
@@ -17,11 +18,14 @@ interface AddNodeModalProps {
 }
 
 export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }: AddNodeModalProps) {
+  const preferredTier = useSettingsStore((s) => s.preferredTier);
   const [kind, setKind] = useState<AddNodeKind>("item");
   const [selected, setSelected] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [machineLabel, setMachineLabel] = useState("");
-  const [machineTier, setMachineTier] = useState("");
+  // Pre-fills from Settings' "preferred tier for new machines" (see SettingsModal) when it's one
+  // of the tiers this dropdown actually offers - still an editable default, not a locked value.
+  const [machineTier, setMachineTier] = useState(preferredTier && TIERS.includes(preferredTier) ? preferredTier : "");
   const [noteText, setNoteText] = useState("");
 
   const options: PickerOption[] = useMemo(() => {

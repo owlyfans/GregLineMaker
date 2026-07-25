@@ -1,5 +1,11 @@
 // GTCEu's own voltage-tier ladder (each tier is 4x the previous, starting at ULV=8 EU/t) - used to
 // turn a recipe's raw `voltage` (EU/t) into the "X.XX A @ TIER" usage line the game itself shows.
+// Also the canonical tier ordering shared by the settings tier-filter/preferred-tier UI (see
+// state/settingsStore.ts) and the recipe picker.
+export const TIER_ORDER = [
+  "ULV", "LV", "MV", "HV", "EV", "IV", "LuV", "ZPM", "UV", "UHV", "UEV", "UIV", "UXV", "OpV", "MAX",
+];
+
 const TIER_VOLTAGE: Record<string, number> = {
   ULV: 8,
   LV: 32,
@@ -20,6 +26,14 @@ const TIER_VOLTAGE: Record<string, number> = {
 
 export function tierVoltage(tier?: string): number | undefined {
   return tier ? TIER_VOLTAGE[tier] : undefined;
+}
+
+/** Rank of a tier in TIER_ORDER (0 = ULV, higher = further up the ladder). Untiered recipes
+ * (undefined) rank below everything - they're always available regardless of a tier cap. */
+export function tierRank(tier?: string): number {
+  if (!tier) return -1;
+  const i = TIER_ORDER.indexOf(tier);
+  return i === -1 ? Infinity : i;
 }
 
 // Approximate, not pulled from the game's actual tier colors pixel-for-pixel - picked from this
