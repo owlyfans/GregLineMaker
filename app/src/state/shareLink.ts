@@ -1,5 +1,6 @@
 import type { Edge } from "reactflow";
 import type { FlowNode } from "./chainStore";
+import type { ChainNodeData } from "../types/chain";
 
 const HASH_KEY = "c=";
 /** Above this, the link still works in any modern browser - it's carried in the hash fragment,
@@ -55,14 +56,47 @@ async function decompress(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<Ar
 // re-measures everything itself on the next load), so it's pure dead weight in a share link -
 // trimming it down to just what loadChain actually needs shrinks the payload for any chain that's
 // had actual canvas interaction (which is all of them), on top of whatever compress() saves.
-// Dragging derives position from mouse-delta / zoom, so it's essentially always a long
-// non-repeating decimal (e.g. 247.83291028393) - unlike a repeated JSON key, that entropy doesn't
-// compress away, and nobody can tell a node landed 0.3px off from where they actually dropped it.
-// Rounding to the nearest pixel before compressing was the single biggest win found here - roughly
-// half the compressed size in testing, well past what trimming React Flow's own runtime fields or
-// switching compression format got on their own.
-function toShareableNode(n: FlowNode): Pick<FlowNode, "id" | "type" | "position" | "data"> {
-  return { id: n.id, type: n.type, position: { x: Math.round(n.position.x), y: Math.round(n.position.y) }, data: n.data };
+//
+// The envelope itself (id/type/position) is also shortened to i/t/p (position to a [x,y] pair,
+// not {x,y}) - a real but much smaller win than the two above, and one that shrinks further (in
+// relative terms) as a chain grows: `id`/`type`/`position` repeat identically on every node, so
+// deflate already collapses most of their cost to a cheap back-reference after the first
+// occurrence - measured roughly 4-8% smaller this way (more on small chains, less on large ones),
+// against ~46% from rounding position and ~29% from trimming React Flow's own fields. Kept
+// backward compatible: fromShareableNode below still reads the old long-key shape a link built
+// before this change would carry.
+interface CompactNode {
+  i: string;
+  t?: string;
+  p: [number, number];
+  d: ChainNodeData;
+}
+
+function toShareableNode(n: FlowNode): CompactNode {
+  return { i: n.id, t: n.type, p: [Math.round(n.position.x), Math.round(n.position.y)], d: n.data as ChainNodeData };
+}
+
+function fromShareableNode(raw: unknown): FlowNode | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.i === "string") {
+    // Compact shape (this version).
+    const [x, y] = Array.isArray(r.p) ? r.p : [0, 0];
+    return { id: r.i, type: r.t as string | undefined, position: { x: Number(x) || 0, y: Number(y) || 0 }, data: r.d as ChainNodeData };
+  }
+  if (typeof r.id === "string") {
+    // Legacy long-key shape (links built before this change) - r.position may itself carry extra
+    // now-unused fields (an even older link, from before React Flow's runtime bookkeeping was
+    // trimmed) but those are simply never read here.
+    const pos = r.position as { x?: unknown; y?: unknown } | undefined;
+    return {
+      id: r.id,
+      type: r.type as string | undefined,
+      position: { x: Number(pos?.x) || 0, y: Number(pos?.y) || 0 },
+      data: r.data as ChainNodeData,
+    };
+  }
+  return null;
 }
 
 function toShareableEdge(e: Edge): Edge {
@@ -102,7 +136,9 @@ export async function readShareUrl(): Promise<{ nodes: FlowNode[]; edges: Edge[]
     const json = new TextDecoder().decode(await decompress(bytes));
     const parsed = JSON.parse(json);
     if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) return null;
-    return { nodes: parsed.nodes, edges: parsed.edges };
+    const nodes = parsed.nodes.map(fromShareableNode);
+    if (nodes.some((n: FlowNode | null) => n === null)) return null;
+    return { nodes, edges: parsed.edges };
   } catch {
     return null;
   }
