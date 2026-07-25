@@ -208,20 +208,30 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
 
   const displayNodes = useMemo(
     () =>
-      nodes.map((n) =>
-        n.data.kind === "item"
-          ? {
-              ...n,
-              data: {
-                ...n.data,
-                refundable: refundSources.has(n.id) || !!n.data.manualRefund,
-                inRefundLoop: (activeLoopIds.has(n.id) && !refundSources.has(n.id)) || !!n.data.manualInLoop,
-                possibleRefund: possibleRefundIds.has(n.id),
-              } as ItemNodeData,
-            }
-          : n,
-      ),
-    [nodes, activeLoopIds, refundSources, possibleRefundIds],
+      nodes.map((n) => {
+        if (n.data.kind === "item") {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              refundable: refundSources.has(n.id) || !!n.data.manualRefund,
+              inRefundLoop: (activeLoopIds.has(n.id) && !refundSources.has(n.id)) || !!n.data.manualInLoop,
+              possibleRefund: possibleRefundIds.has(n.id),
+            } as ItemNodeData,
+          };
+        }
+        if (n.data.kind === "machine") {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              recipeHeatRequirement: n.data.recipeId ? recipesById.get(n.data.recipeId)?.heatRequirement : undefined,
+            } as MachineNodeData,
+          };
+        }
+        return n;
+      }),
+    [nodes, activeLoopIds, refundSources, possibleRefundIds, recipesById],
   );
 
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);

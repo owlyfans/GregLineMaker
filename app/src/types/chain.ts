@@ -70,6 +70,12 @@ export interface MachineNodeData {
    * lib/coils' COIL_MACHINE_TYPES/effectiveDurationTicks). Irrelevant/unset for every other
    * machine. One of lib/coils' COIL_TYPES ids (e.g. "nichrome"). */
   coilTier?: string;
+  /** The attached recipe's own heat requirement in Kelvin (see types/recipe's
+   * Recipe.heatRequirement), mirrored here so MachineNode can flag an insufficient coil without
+   * needing its own recipe-database access. Like ItemNodeData's refundable/possibleRefund, this is
+   * recomputed live from the graph on every change (see ChainView's displayNodes), not persisted
+   * as meaningful state of its own. */
+  recipeHeatRequirement?: number;
   /** How many of this exact machine are running in parallel on the same recipe - same inputs and
    * outputs, just more instances splitting the workload, not separate nodes. Lets a slow step's
    * share of the critical-path "time to produce" be divided across N machines instead of one

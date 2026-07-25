@@ -75,7 +75,8 @@ export function RecipeCard({ recipe, db, highlight, compact = false }: RecipeCar
   const voltage = tierVoltage(recipe.tier);
   const amps = recipe.voltage !== undefined && voltage ? recipe.voltage / voltage : undefined;
   const totalEu = recipe.voltage !== undefined && recipe.durationTicks !== undefined ? recipe.voltage * recipe.durationTicks : undefined;
-  const hasStats = !compact && (recipe.durationTicks !== undefined || totalEu !== undefined || amps !== undefined);
+  const hasStats =
+    !compact && (recipe.durationTicks !== undefined || totalEu !== undefined || amps !== undefined || recipe.heatRequirement !== undefined);
   const slotSize = compact ? 44 : 64;
 
   return (
@@ -106,6 +107,9 @@ export function RecipeCard({ recipe, db, highlight, compact = false }: RecipeCar
                 Usage: {amps.toFixed(2)} A{recipe.tier ? ` @ ${recipe.tier}` : ""}
               </div>
             )}
+            {/* A coil multiblock (Electric Blast Furnace/Alloy Blast Smelter) heat requirement -
+             * see lib/coils - matches the wording GTCEu's own recipe viewer uses for it. */}
+            {recipe.heatRequirement !== undefined && <div>Temp: {recipe.heatRequirement.toLocaleString()} K</div>}
           </div>
           {recipe.tier && (
             <span
