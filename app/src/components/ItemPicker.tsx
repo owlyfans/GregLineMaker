@@ -14,10 +14,14 @@ interface ItemPickerProps {
   value: string | null;
   onChange: (id: string | null) => void;
   clearable?: boolean;
+  /** Overrides which icons.json key each option's IconSlot resolves against - for option lists
+   * whose `id` isn't itself a valid icon key (e.g. machine ids, which need resolveMachineIconId's
+   * tiered/fallback lookup rather than a direct icons[id] hit). Defaults to using `id` as-is. */
+  resolveIcon?: (id: string) => string | undefined;
 }
 
 /** Minimal searchable dropdown - no extra dependency, filters options as you type. */
-export function ItemPicker({ label, placeholder, options, value, onChange, clearable }: ItemPickerProps) {
+export function ItemPicker({ label, placeholder, options, value, onChange, clearable, resolveIcon }: ItemPickerProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -67,7 +71,7 @@ export function ItemPicker({ label, placeholder, options, value, onChange, clear
                 setOpen(false);
               }}
             >
-              <IconSlot id={o.id} label={o.label} size={30} />
+              <IconSlot id={resolveIcon ? resolveIcon(o.id) : o.id} label={o.label} size={30} />
               <span className="item-picker-option-label">{o.label}</span>
             </li>
           ))}

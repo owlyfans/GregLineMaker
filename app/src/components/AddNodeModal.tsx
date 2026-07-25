@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import type { RecipeDatabase } from "../types/recipe";
+import { humanizeMachine } from "../solver/solve";
+import { resolveMachineIconId } from "../lib/machineIcon";
+import { useIconStore } from "../state/iconStore";
 import { ItemPicker, type PickerOption } from "./ItemPicker";
 import { QuickAmountButtons } from "./QuickAmountButtons";
 import { Modal } from "./Modal";
@@ -12,7 +15,7 @@ interface AddNodeModalProps {
   db: RecipeDatabase;
   onClose: () => void;
   onAddItem: (kind: "item" | "fluid", itemId: string, label: string, amount?: string) => void;
-  onAddMachine: (label: string, tier?: string) => void;
+  onAddMachine: (label: string, tier: string | undefined, machineId: string | undefined) => void;
   onAddNote: (text: string) => void;
 }
 
@@ -20,9 +23,10 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
   const [kind, setKind] = useState<AddNodeKind>("item");
   const [selected, setSelected] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
-  const [machineLabel, setMachineLabel] = useState("");
+  const [machineId, setMachineId] = useState<string | null>(null);
   const [machineTier, setMachineTier] = useState("");
   const [noteText, setNoteText] = useState("");
+  const icons = useIconStore((s) => s.icons);
 
   const options: PickerOption[] = useMemo(() => {
     if (kind !== "item" && kind !== "fluid") return [];
@@ -30,13 +34,21 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
     return Object.entries(map).map(([id, label]) => ({ id, label }));
   }, [db, kind]);
 
-  const canSubmit =
-    kind === "machine" ? machineLabel.trim().length > 0 : kind === "note" ? noteText.trim().length > 0 : !!selected;
+  // Every distinct machine the recipe database actually knows about - picking from this (instead
+  // of a free-text name) keeps a manually added machine node's label/icon tied to a real GTCEu
+  // machine, the same way one added via the recipe picker already is.
+  const machineOptions: PickerOption[] = useMemo(() => {
+    const ids = new Set(db.recipes.map((r) => r.machine));
+    return [...ids].map((id) => ({ id, label: humanizeMachine(id) })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [db]);
+
+  const canSubmit = kind === "machine" ? !!machineId : kind === "note" ? noteText.trim().length > 0 : !!selected;
 
   function submit() {
     if (kind === "machine") {
-      if (!machineLabel.trim()) return;
-      onAddMachine(machineLabel.trim(), machineTier || undefined);
+      if (!machineId) return;
+      const label = machineOptions.find((o) => o.id === machineId)?.label ?? machineId;
+      onAddMachine(label, machineTier || undefined, machineId);
     } else if (kind === "note") {
       if (!noteText.trim()) return;
       onAddNote(noteText.trim());
@@ -89,17 +101,15 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
         </div>
       ) : kind === "machine" ? (
         <div className="add-node-form">
-          <label className="add-node-amount-label">
-            Machine name
-            <input
-              type="text"
-              className="add-node-amount-input"
-              value={machineLabel}
-              onChange={(e) => setMachineLabel(e.target.value)}
-              placeholder="e.g. Chemical Reactor"
-              autoFocus
-            />
-          </label>
+          <ItemPicker
+            label="Machine"
+            placeholder="Search machines..."
+            options={machineOptions}
+            value={machineId}
+            onChange={setMachineId}
+            resolveIcon={(id) => resolveMachineIconId(icons, id, machineTier || undefined)}
+            clearable
+          />
           <label className="add-node-amount-label">
             Tier (optional)
             <select className="add-node-amount-input" value={machineTier} onChange={(e) => setMachineTier(e.target.value)}>

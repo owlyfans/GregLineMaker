@@ -170,7 +170,7 @@ interface ChainStoreState {
     position: { x: number; y: number },
     amount?: string,
   ) => string;
-  addMachineNode: (label: string, tier: string | undefined, position: { x: number; y: number }) => string;
+  addMachineNode: (label: string, tier: string | undefined, position: { x: number; y: number }, machineId?: string) => string;
   addNoteNode: (text: string, position: { x: number; y: number }) => string;
   removeNode: (id: string) => void;
   removeNodes: (ids: string[]) => void;
@@ -397,10 +397,10 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
       return id;
     },
 
-    addMachineNode: (label, tier, position) => {
+    addMachineNode: (label, tier, position, machineId) => {
       get().checkpoint();
       const id = newId("machine");
-      const data: MachineNodeData = { kind: "machine", label, tier };
+      const data: MachineNodeData = { kind: "machine", label, tier, machineId };
       set({ nodes: [...deselectAll(get().nodes), { id, type: "machine", data, position, selected: true }] });
       return id;
     },

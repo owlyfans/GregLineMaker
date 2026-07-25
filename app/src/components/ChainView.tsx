@@ -671,7 +671,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
           db={db}
           onClose={() => setAddNodeAt(null)}
           onAddItem={(kind, itemId, label, amount) => addItemNode(kind, itemId, label, addNodeAt, amount)}
-          onAddMachine={(label, tier) => addMachineNode(label, tier, addNodeAt)}
+          onAddMachine={(label, tier, machineId) => addMachineNode(label, tier, addNodeAt, machineId)}
           onAddNote={(text) => addNoteNode(text, addNodeAt)}
         />
       )}
@@ -697,6 +697,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
 
       {editingNode && (
         <EditNodeModal
+          db={db}
           data={editingNode.data}
           minTier={
             editingNode.data.kind === "machine" && editingNode.data.recipeId
