@@ -5,8 +5,11 @@ import { Modal } from "./Modal";
 import { IconSlot } from "./IconSlot";
 import { resolveMachineIconId } from "../lib/machineIcon";
 import { useIconStore } from "../state/iconStore";
+import { TIER_ORDER } from "../lib/gtTiers";
 
-const TIERS = ["", "ULV", "LV", "MV", "HV", "EV", "IV", "LuV", "ZPM", "UV", "UHV"];
+// A machine tier above a recipe's own minimum overclocks it (see lib/gtTiers) - so the full ladder
+// needs to be selectable here, not just the tiers recipes themselves are commonly found at.
+const TIERS = ["", ...TIER_ORDER];
 
 interface EditNodeModalProps {
   data: ChainNodeData;

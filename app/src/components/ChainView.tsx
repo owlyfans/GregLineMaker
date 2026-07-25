@@ -17,6 +17,7 @@ import { useFavoritesStore } from "../state/favoritesStore";
 import { nodeKey } from "../solver/solve";
 import { buildInputIndex, detectActiveRefundLoops, findRefundPaths, type RefundPath } from "../solver/refund";
 import { formatDuration, parallelizedTicks } from "../lib/productionTime";
+import { overclockedDurationTicks } from "../lib/gtTiers";
 import { ItemNode } from "./nodes/ItemNode";
 import { MachineNode } from "./nodes/MachineNode";
 import { NoteNode } from "./nodes/NoteNode";
@@ -245,7 +246,11 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         const amount = Number(targetData.amount);
         if (!Number.isFinite(amount) || amount <= 0) return e;
         const runs = Math.max(1, Math.ceil(amount / outputIo.amount));
-        const ticks = parallelizedTicks(runs, recipe.durationTicks, machineData.parallelCount);
+        const ticks = parallelizedTicks(
+          runs,
+          overclockedDurationTicks(recipe.durationTicks, recipe.tier, machineData.tier),
+          machineData.parallelCount,
+        );
         return { ...e, data: { ...e.data, timeLabel: formatDuration(ticks) } };
       }),
     [edges, nodeById, recipesById],

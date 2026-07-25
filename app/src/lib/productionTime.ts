@@ -2,6 +2,7 @@ import type { Edge } from "reactflow";
 import type { FlowNode } from "../state/chainStore";
 import type { ItemNodeData, MachineNodeData } from "../types/chain";
 import type { Recipe, RecipeDatabase } from "../types/recipe";
+import { overclockedDurationTicks } from "./gtTiers";
 
 export interface FinalOutputTime {
   nodeId: string;
@@ -97,7 +98,11 @@ function timeForMachine(
   const machineData = machineNode.data as MachineNodeData;
   const recipe = machineData.recipeId ? recipesById.get(machineData.recipeId) : undefined;
   const ownTime = recipe?.durationTicks
-    ? parallelizedTicks(machineRuns(machineId, recipe, nodeById, edges), recipe.durationTicks, machineData.parallelCount)
+    ? parallelizedTicks(
+        machineRuns(machineId, recipe, nodeById, edges),
+        overclockedDurationTicks(recipe.durationTicks, recipe.tier, machineData.tier),
+        machineData.parallelCount,
+      )
     : 0;
 
   // This machine can't start until its slowest input is ready.
@@ -160,7 +165,11 @@ export function computeBottlenecks(nodes: FlowNode[], edges: Edge[], db: RecipeD
     const data = n.data as MachineNodeData;
     const recipe = data.recipeId ? recipesById.get(data.recipeId) : undefined;
     if (!recipe?.durationTicks) continue;
-    const ticks = parallelizedTicks(machineRuns(n.id, recipe, nodeById, edges), recipe.durationTicks, data.parallelCount);
+    const ticks = parallelizedTicks(
+      machineRuns(n.id, recipe, nodeById, edges),
+      overclockedDurationTicks(recipe.durationTicks, recipe.tier, data.tier),
+      data.parallelCount,
+    );
     entries.push({ machineId: n.id, label: data.label, tier: data.tier, ticks });
   }
   if (entries.length < 2) return [];
