@@ -2,7 +2,7 @@ import type { Edge } from "reactflow";
 import type { FlowNode } from "../state/chainStore";
 import type { ItemNodeData, MachineNodeData } from "../types/chain";
 import type { Recipe, RecipeDatabase } from "../types/recipe";
-import { overclockedDurationTicks } from "./gtTiers";
+import { effectiveDurationTicks } from "./coils";
 
 export interface FinalOutputTime {
   nodeId: string;
@@ -100,7 +100,7 @@ function timeForMachine(
   const ownTime = recipe?.durationTicks
     ? parallelizedTicks(
         machineRuns(machineId, recipe, nodeById, edges),
-        overclockedDurationTicks(recipe.durationTicks, recipe.tier, machineData.tier),
+        effectiveDurationTicks(recipe, machineData.tier, machineData.coilTier),
         machineData.parallelCount,
       )
     : 0;
@@ -167,7 +167,7 @@ export function computeBottlenecks(nodes: FlowNode[], edges: Edge[], db: RecipeD
     if (!recipe?.durationTicks) continue;
     const ticks = parallelizedTicks(
       machineRuns(n.id, recipe, nodeById, edges),
-      overclockedDurationTicks(recipe.durationTicks, recipe.tier, data.tier),
+      effectiveDurationTicks(recipe, data.tier, data.coilTier),
       data.parallelCount,
     );
     entries.push({ machineId: n.id, label: data.label, tier: data.tier, ticks });

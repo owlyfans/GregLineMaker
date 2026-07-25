@@ -61,8 +61,15 @@ export interface MachineNodeData {
   /** The recipe this machine instance represents, if it was added via the recipe picker. */
   recipeId?: string;
   /** The recipe's raw namespaced machine id (e.g. "gtceu:macerator"), if known - used to look up
-   * an icon (see lib/machineIcon.ts). Not set for manually added machine nodes. */
+   * an icon (see lib/machineIcon.ts) and to decide whether this node needs a Coil selector below
+   * (see lib/coils' COIL_MACHINE_TYPES). Set by both the recipe picker and the manual Add/Edit
+   * Node machine dropdown. */
   machineId?: string;
+  /** Which coil this instance is built with, for the handful of multiblocks whose overclock speed
+   * depends on it (Electric Blast Furnace/Alloy Blast Smelter/Rotary Hearth Furnace - see
+   * lib/coils' COIL_MACHINE_TYPES/effectiveDurationTicks). Irrelevant/unset for every other
+   * machine. One of lib/coils' COIL_TYPES ids (e.g. "nichrome"). */
+  coilTier?: string;
   /** How many of this exact machine are running in parallel on the same recipe - same inputs and
    * outputs, just more instances splitting the workload, not separate nodes. Lets a slow step's
    * share of the critical-path "time to produce" be divided across N machines instead of one

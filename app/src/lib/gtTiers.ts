@@ -74,7 +74,7 @@ export function tierGradient(tier?: string): string {
 // Order matters here - index = rank on the voltage ladder, used by the overclock math below.
 export const TIER_ORDER = Object.keys(TIER_VOLTAGE);
 
-function tierIndex(tier?: string): number {
+export function tierIndex(tier?: string): number {
   if (!tier) return -1;
   return TIER_ORDER.indexOf(tier);
 }

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { RecipeDatabase } from "../types/recipe";
 import { humanizeMachine } from "../solver/solve";
 import { resolveMachineIconId } from "../lib/machineIcon";
+import { COIL_MACHINE_TYPES, COIL_TYPES } from "../lib/coils";
 import { useIconStore } from "../state/iconStore";
 import { ItemPicker, type PickerOption } from "./ItemPicker";
 import { QuickAmountButtons } from "./QuickAmountButtons";
@@ -15,7 +16,7 @@ interface AddNodeModalProps {
   db: RecipeDatabase;
   onClose: () => void;
   onAddItem: (kind: "item" | "fluid", itemId: string, label: string, amount?: string) => void;
-  onAddMachine: (label: string, tier: string | undefined, machineId: string | undefined) => void;
+  onAddMachine: (label: string, tier: string | undefined, machineId: string | undefined, coilTier: string | undefined) => void;
   onAddNote: (text: string) => void;
 }
 
@@ -25,8 +26,10 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
   const [amount, setAmount] = useState("");
   const [machineId, setMachineId] = useState<string | null>(null);
   const [machineTier, setMachineTier] = useState("");
+  const [coilTier, setCoilTier] = useState("");
   const [noteText, setNoteText] = useState("");
   const icons = useIconStore((s) => s.icons);
+  const usesCoil = !!machineId && COIL_MACHINE_TYPES.has(machineId);
 
   const options: PickerOption[] = useMemo(() => {
     if (kind !== "item" && kind !== "fluid") return [];
@@ -48,7 +51,7 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
     if (kind === "machine") {
       if (!machineId) return;
       const label = machineOptions.find((o) => o.id === machineId)?.label ?? machineId;
-      onAddMachine(label, machineTier || undefined, machineId);
+      onAddMachine(label, machineTier || undefined, machineId, usesCoil ? coilTier || undefined : undefined);
     } else if (kind === "note") {
       if (!noteText.trim()) return;
       onAddNote(noteText.trim());
@@ -106,7 +109,12 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
             placeholder="Search machines..."
             options={machineOptions}
             value={machineId}
-            onChange={setMachineId}
+            onChange={(id) => {
+              setMachineId(id);
+              // Coil multiblocks always physically have some coil built in - default to the
+              // cheapest rather than leaving the new dropdown looking unset/broken.
+              if (id && COIL_MACHINE_TYPES.has(id) && !coilTier) setCoilTier(COIL_TYPES[0].id);
+            }}
             resolveIcon={(id) => resolveMachineIconId(icons, id, machineTier || undefined)}
             clearable
           />
@@ -121,6 +129,19 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
               ))}
             </select>
           </label>
+          {usesCoil && (
+            <label className="add-node-amount-label">
+              Coil
+              <select className="add-node-amount-input" value={coilTier} onChange={(e) => setCoilTier(e.target.value)}>
+                <option value="">-</option>
+                {COIL_TYPES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       ) : (
         <div className="add-node-form">

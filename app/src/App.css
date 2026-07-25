@@ -1524,6 +1524,13 @@
   letter-spacing: normal;
 }
 
+.add-node-field-hint {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
 .add-node-textarea {
   resize: vertical;
   min-height: 70px;

@@ -21,6 +21,14 @@ export interface Recipe {
   tier?: string;
   durationTicks?: number;
   voltage?: number;
+  /** Minimum Kelvin a coil multiblock (Electric Blast Furnace/Alloy Blast Smelter/Rotary Hearth
+   * Furnace - see lib/coils' COIL_MACHINE_TYPES) must reach to run this recipe at all - GTCEu's
+   * "Hot Ingot" recipes (e.g. Hot Titanium Ingot) are the main case. Undefined for recipes with no
+   * heat requirement (the vast majority, including most other Blast Furnace recipes) - NOT the
+   * same as 0K, just "no requirement to check". Requires the pipeline's dump to have captured the
+   * recipe's `ebf_temp` data tag (see mod/ RecipeDumper.java) - absent from data produced before
+   * that was added, in which case this simply won't be present on any recipe yet. */
+  heatRequirement?: number;
   inputs: RecipeIo[];
   outputs: RecipeIo[];
 }

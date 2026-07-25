@@ -17,7 +17,7 @@ import { useFavoritesStore } from "../state/favoritesStore";
 import { nodeKey } from "../solver/solve";
 import { buildInputIndex, detectActiveRefundLoops, findRefundPaths, type RefundPath } from "../solver/refund";
 import { formatDuration, parallelizedTicks } from "../lib/productionTime";
-import { overclockedDurationTicks } from "../lib/gtTiers";
+import { effectiveDurationTicks } from "../lib/coils";
 import { ItemNode } from "./nodes/ItemNode";
 import { MachineNode } from "./nodes/MachineNode";
 import { NoteNode } from "./nodes/NoteNode";
@@ -248,7 +248,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         const runs = Math.max(1, Math.ceil(amount / outputIo.amount));
         const ticks = parallelizedTicks(
           runs,
-          overclockedDurationTicks(recipe.durationTicks, recipe.tier, machineData.tier),
+          effectiveDurationTicks(recipe, machineData.tier, machineData.coilTier),
           machineData.parallelCount,
         );
         return { ...e, data: { ...e.data, timeLabel: formatDuration(ticks) } };
@@ -671,7 +671,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
           db={db}
           onClose={() => setAddNodeAt(null)}
           onAddItem={(kind, itemId, label, amount) => addItemNode(kind, itemId, label, addNodeAt, amount)}
-          onAddMachine={(label, tier, machineId) => addMachineNode(label, tier, addNodeAt, machineId)}
+          onAddMachine={(label, tier, machineId, coilTier) => addMachineNode(label, tier, addNodeAt, machineId, coilTier)}
           onAddNote={(text) => addNoteNode(text, addNodeAt)}
         />
       )}
@@ -699,9 +699,9 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         <EditNodeModal
           db={db}
           data={editingNode.data}
-          minTier={
+          recipe={
             editingNode.data.kind === "machine" && editingNode.data.recipeId
-              ? recipesById.get(editingNode.data.recipeId)?.tier
+              ? recipesById.get(editingNode.data.recipeId)
               : undefined
           }
           onClose={() => setEditingNode(null)}
