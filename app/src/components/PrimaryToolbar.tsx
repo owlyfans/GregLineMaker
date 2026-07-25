@@ -90,12 +90,16 @@ export function PrimaryToolbar({
       </Tooltip>
       <Tooltip label="Settings">
         <button type="button" className="floating-toolbar-btn" onClick={onOpenSettings}>
+          {/* A gear, not the old icon's sun/compass look - the previous version's 8 rays started
+              well clear of the ring instead of sitting flush against it, so it read as radiating
+              spokes rather than teeth. These are short, thick, round-capped nubs planted right on
+              the ring's own edge, the way an actual cog's teeth are fused to its body. */}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+            <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
             <path
-              d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"
+              d="M8 5V3.4M8 11v1.6M5 8H3.4M11 8h1.6M10.12 5.88l1.13-1.13M5.88 5.88 4.75 4.75M5.88 10.12l-1.13 1.13M10.12 10.12l1.13 1.13"
               stroke="currentColor"
-              strokeWidth="1.3"
+              strokeWidth="2.1"
               strokeLinecap="round"
             />
           </svg>

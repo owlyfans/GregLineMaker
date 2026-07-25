@@ -22,23 +22,63 @@ function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-async function gzip(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
-  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+// "deflate-raw" (bare DEFLATE bitstream) instead of "gzip" - same compression, just without
+// gzip's ~18-byte magic-number/CRC32/ISIZE wrapper, which buys nothing here (the hash isn't a
+// standalone file needing self-identification/integrity-checking - readShareUrl already only
+// reads it in the one place that produced it).
+async function compress(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-async function gunzip(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+async function decompressAs(bytes: Uint8Array<ArrayBuffer>, format: CompressionFormat): Promise<Uint8Array<ArrayBuffer>> {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream(format));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** Builds a shareable link with the whole chain gzip-compressed into the hash fragment (`#c=...`).
+// The hash carries no format marker, so an old "gzip"-built link (from before this switched to
+// "deflate-raw") needs a fallback rather than just failing outright - readShareUrl already treats
+// any decode failure as "not a share link" (see its own doc comment), which would otherwise make
+// every link built before this change quietly stop restoring.
+async function decompress(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
+  try {
+    return await decompressAs(bytes, "deflate-raw");
+  } catch {
+    return decompressAs(bytes, "gzip");
+  }
+}
+
+// React Flow's own applyNodeChanges/applyEdgeChanges (see chainStore's onNodesChange/onEdgesChange)
+// permanently attach runtime bookkeeping - width/height/measured/positionAbsolute once a node's
+// been rendered/measured, `selected`/`dragging` from ordinary canvas interaction - onto the very
+// node/edge objects this store holds. None of it is needed to reconstruct the chain (React Flow
+// re-measures everything itself on the next load), so it's pure dead weight in a share link -
+// trimming it down to just what loadChain actually needs shrinks the payload for any chain that's
+// had actual canvas interaction (which is all of them), on top of whatever compress() saves.
+function toShareableNode(n: FlowNode): Pick<FlowNode, "id" | "type" | "position" | "data"> {
+  return { id: n.id, type: n.type, position: n.position, data: n.data };
+}
+
+function toShareableEdge(e: Edge): Edge {
+  const shareable: Edge = { id: e.id, source: e.source, target: e.target };
+  if (e.sourceHandle != null) shareable.sourceHandle = e.sourceHandle;
+  if (e.targetHandle != null) shareable.targetHandle = e.targetHandle;
+  if (e.label !== undefined) shareable.label = e.label;
+  if (e.animated) shareable.animated = e.animated;
+  if (e.style) shareable.style = e.style;
+  if (e.labelStyle) shareable.labelStyle = e.labelStyle;
+  if (e.markerEnd) shareable.markerEnd = e.markerEnd;
+  if (e.data) shareable.data = e.data;
+  return shareable;
+}
+
+/** Builds a shareable link with the whole chain compressed into the hash fragment (`#c=...`).
  * Repetitive JSON (same field names on every node/edge) compresses very well, and the hash never
  * touches a server, so this comfortably fits even large chains. `long` flags links past a length
  * where some chat apps/SMS might mangle the paste, so the caller can warn without blocking it. */
 export async function buildShareUrl(nodes: FlowNode[], edges: Edge[]): Promise<{ url: string; long: boolean }> {
-  const json = JSON.stringify({ nodes, edges });
-  const compressed = await gzip(new TextEncoder().encode(json));
+  const json = JSON.stringify({ nodes: nodes.map(toShareableNode), edges: edges.map(toShareableEdge) });
+  const compressed = await compress(new TextEncoder().encode(json));
   const encoded = bytesToBase64Url(compressed);
   const url = `${location.origin}${location.pathname}#${HASH_KEY}${encoded}`;
   return { url, long: url.length > LONG_LINK_WARNING_LENGTH };
@@ -53,7 +93,7 @@ export async function readShareUrl(): Promise<{ nodes: FlowNode[]; edges: Edge[]
   if (!encoded) return null;
   try {
     const bytes = base64UrlToBytes(encoded);
-    const json = new TextDecoder().decode(await gunzip(bytes));
+    const json = new TextDecoder().decode(await decompress(bytes));
     const parsed = JSON.parse(json);
     if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) return null;
     return { nodes: parsed.nodes, edges: parsed.edges };
