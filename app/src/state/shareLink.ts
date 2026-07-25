@@ -55,8 +55,14 @@ async function decompress(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<Ar
 // re-measures everything itself on the next load), so it's pure dead weight in a share link -
 // trimming it down to just what loadChain actually needs shrinks the payload for any chain that's
 // had actual canvas interaction (which is all of them), on top of whatever compress() saves.
+// Dragging derives position from mouse-delta / zoom, so it's essentially always a long
+// non-repeating decimal (e.g. 247.83291028393) - unlike a repeated JSON key, that entropy doesn't
+// compress away, and nobody can tell a node landed 0.3px off from where they actually dropped it.
+// Rounding to the nearest pixel before compressing was the single biggest win found here - roughly
+// half the compressed size in testing, well past what trimming React Flow's own runtime fields or
+// switching compression format got on their own.
 function toShareableNode(n: FlowNode): Pick<FlowNode, "id" | "type" | "position" | "data"> {
-  return { id: n.id, type: n.type, position: n.position, data: n.data };
+  return { id: n.id, type: n.type, position: { x: Math.round(n.position.x), y: Math.round(n.position.y) }, data: n.data };
 }
 
 function toShareableEdge(e: Edge): Edge {
