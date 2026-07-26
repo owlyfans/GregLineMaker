@@ -222,6 +222,46 @@ function isMachineScrapRecipe(r, machineItemIds) {
   return machineItemIds.has(r.inputs[0].ids[0]);
 }
 
+// ---- generators.json -------------------------------------------------------------------
+// Fuel-burning recipes that produce EU as their output (Steam Turbine/Combustion
+// Generator/Gas Turbine/...) - see mod/'s RecipeDumper.dumpGenerators, which reuses the exact
+// same per-recipe JSON shape as gt_recipes.json, just pre-filtered to EU-output recipes. Turned
+// into a fuel-consumed-per-EU ratio here (mB or item count per EU, tier-invariant: a higher-tier
+// generator of the same type just burns the same fuel faster for proportionally more output, same
+// mB-per-EU efficiency - same reasoning as overclocking a consuming machine), rather than a
+// hardcoded guess at real-world steam/gas values.
+function normalizeGenerators(raw) {
+  const out = [];
+  let skipped = 0;
+  for (const r of raw) {
+    if (r.euIo !== "output" || !r.voltage || !r.amperage) {
+      skipped++;
+      continue;
+    }
+    // tickInputs is already "per tick"; a lump-sum `inputs` amount needs dividing by the recipe's
+    // own duration to get the same per-tick basis.
+    const tickFuel = normalizeInputs(r.tickInputs)[0];
+    const lumpFuel = normalizeInputs(r.inputs)[0];
+    const fuel = tickFuel ?? lumpFuel;
+    if (!fuel) {
+      skipped++;
+      continue;
+    }
+    const fuelAmountPerTick = tickFuel ? tickFuel.amount : r.duration ? lumpFuel.amount / r.duration : lumpFuel.amount;
+    out.push({
+      id: r.id,
+      machine: r.type,
+      tier: r.tier,
+      fuelKind: fuel.kind,
+      fuelIds: fuel.ids,
+      fuelAmountPerTick,
+      euPerTick: r.voltage * r.amperage,
+    });
+  }
+  console.log(`[pipeline] generators: ${out.length}/${raw.length} normalized (${skipped} skipped)`);
+  return out;
+}
+
 // ---- main ---------------------------------------------------------------------------------
 
 function main() {
@@ -278,16 +318,25 @@ function main() {
   allRecipes = allRecipes.filter((r) => !isSuspectMacerate(r));
   console.log(`[pipeline] excluded ${beforeMacerateFilter - allRecipes.length} suspect macerator scrap recipes`);
 
+  const generatorsFile = path.join(DUMP_DIR, "generators.json");
+  let generators = [];
+  if (fs.existsSync(generatorsFile)) {
+    generators = normalizeGenerators(readJson(generatorsFile));
+  } else {
+    console.log("[pipeline] generators.json not found in dump (old dump?) - skipping generator fuel data");
+  }
+
   const db = {
     items,
     fluids,
     recipes: allRecipes,
+    generators,
   };
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const outFile = path.join(OUT_DIR, "recipes.json");
   fs.writeFileSync(outFile, JSON.stringify(db));
-  console.log(`[pipeline] wrote ${outFile} (${db.recipes.length} recipes)`);
+  console.log(`[pipeline] wrote ${outFile} (${db.recipes.length} recipes, ${db.generators.length} generator fuels)`);
 }
 
 main();

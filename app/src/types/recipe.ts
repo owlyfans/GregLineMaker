@@ -33,10 +33,33 @@ export interface Recipe {
   outputs: RecipeIo[];
 }
 
+/** A fuel-burning recipe that produces EU as its OUTPUT (Steam Turbine/Combustion
+ * Generator/Gas Turbine/...) rather than consuming it - see mod/'s RecipeDumper.dumpGenerators and
+ * pipeline/build.mjs's normalizeGenerators. */
+export interface GeneratorFuel {
+  id: string;
+  /** e.g. "gtceu:steam_turbine_fuel", "gtceu:combustion_generator_fuel", "gtceu:gas_turbine_fuel" */
+  machine: string;
+  tier?: string;
+  fuelKind: IoKind;
+  fuelIds: string[];
+  /** Fuel consumed per tick to sustain `euPerTick` - mB/t for a fluid fuel, count/t for an item
+   * fuel (rare). */
+  fuelAmountPerTick: number;
+  /** EU/t this recipe's own base-tier generator instance outputs while burning fuel at
+   * `fuelAmountPerTick` - a higher-tier generator of the same machine type just burns the same
+   * fuel proportionally faster for proportionally more output (same mB-per-EU efficiency), same
+   * reasoning as overclocking a consuming machine - so this ratio holds at any tier. */
+  euPerTick: number;
+}
+
 export interface RecipeDatabase {
   /** id -> display name */
   items: Record<string, string>;
   /** id -> display name */
   fluids: Record<string, string>;
   recipes: Recipe[];
+  /** Absent/empty on a recipe dump predating this field (an already-published resources/ version
+   * that hasn't been resynced) - engine fuel-consumption planning just isn't available then. */
+  generators?: GeneratorFuel[];
 }

@@ -255,7 +255,7 @@ function App() {
         />
       )}
 
-      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsModal db={db} onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

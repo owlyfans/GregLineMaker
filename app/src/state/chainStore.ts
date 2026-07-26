@@ -162,6 +162,11 @@ interface ChainStoreState {
    * `data.color` (background) and `data.borderColor` (border), overriding any semantic border
    * color (refundable/tool/role) the node might otherwise show - see ItemNode/MachineNode/NoteNode. */
   setNodesColor: (nodeIds: string[], choice: NodeColorChoice) => void;
+  /** Recolors a mix of nodes AND edges together as one undo step - used when a marquee selection
+   * catches both (an edge auto-selects once both its endpoints are selected), so a single swatch
+   * pick recolors everything currently selected instead of nodes and edges needing separate clicks
+   * from two side-by-side toolbars. */
+  setSelectionColor: (nodeIds: string[], edgeIds: string[], nodeChoice: NodeColorChoice, edgeColor: string) => void;
 
   addItemNode: (
     kind: "item" | "fluid",
@@ -178,6 +183,12 @@ interface ChainStoreState {
     coilTier?: string,
   ) => string;
   addNoteNode: (text: string, position: { x: number; y: number }) => string;
+  /** Adds a copied/cut batch of nodes (+ any edges wholly internal to that batch) as one undo
+   * step - used by clipboard paste. Every node/edge gets a fresh id (remapped consistently so
+   * internal wiring survives); positions are shifted so the batch's own bounding-box center lands
+   * on `anchor` (cursor location, or canvas center as a fallback - see ChainView). Pasted nodes
+   * become the only selection, same as any other add. */
+  pasteNodes: (nodes: FlowNode[], edges: Edge[], anchor: { x: number; y: number }) => void;
   removeNode: (id: string) => void;
   removeNodes: (ids: string[]) => void;
   removeEdge: (id: string) => void;
@@ -382,6 +393,30 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
       });
     },
 
+    setSelectionColor: (nodeIds, edgeIds, nodeChoice, edgeColor) => {
+      const nodeIdSet = new Set(nodeIds);
+      const edgeIdSet = new Set(edgeIds);
+      get().checkpoint();
+      set({
+        nodes: get().nodes.map((n) =>
+          nodeIdSet.has(n.id)
+            ? { ...n, data: { ...n.data, color: nodeChoice.background, borderColor: nodeChoice.border } as ChainNodeData }
+            : n,
+        ),
+        edges: get().edges.map((e) => {
+          if (!edgeIdSet.has(e.id)) return e;
+          const markerEnd =
+            typeof e.markerEnd === "object" && e.markerEnd !== null ? { ...e.markerEnd, color: edgeColor } : e.markerEnd;
+          return {
+            ...e,
+            style: { ...e.style, stroke: edgeColor },
+            markerEnd,
+            labelStyle: e.label ? { ...e.labelStyle, fill: edgeColor, fontWeight: 600 } : e.labelStyle,
+          };
+        }),
+      });
+    },
+
     onConnect: (connection) => {
       if (!connection.source || !connection.target) return;
       get().checkpoint();
@@ -425,6 +460,41 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
       const data: NoteNodeData = { kind: "note", text };
       set({ nodes: [...deselectAll(get().nodes), { id, type: "note", data, position, selected: true }] });
       return id;
+    },
+
+    pasteNodes: (pastedNodes, pastedEdges, anchor) => {
+      if (pastedNodes.length === 0) return;
+      get().checkpoint();
+
+      const idMap = new Map<string, string>();
+      for (const n of pastedNodes) idMap.set(n.id, newId(n.type ?? "node"));
+
+      const xs = pastedNodes.map((n) => n.position.x);
+      const ys = pastedNodes.map((n) => n.position.y);
+      const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+      const dx = anchor.x - centerX;
+      const dy = anchor.y - centerY;
+
+      const newNodes: FlowNode[] = pastedNodes.map((n) => ({
+        ...n,
+        id: idMap.get(n.id)!,
+        position: { x: n.position.x + dx, y: n.position.y + dy },
+        selected: true,
+        data: { ...n.data },
+      }));
+
+      const newEdges: Edge[] = pastedEdges
+        .filter((e) => idMap.has(e.source) && idMap.has(e.target))
+        .map((e) => ({
+          ...e,
+          id: newId("edge"),
+          source: idMap.get(e.source)!,
+          target: idMap.get(e.target)!,
+          selected: false,
+        }));
+
+      set({ nodes: [...deselectAll(get().nodes), ...newNodes], edges: [...get().edges, ...newEdges] });
     },
 
     removeNode: (id) => {

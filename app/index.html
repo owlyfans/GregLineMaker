@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Node/edge copy-paste (see lib/clipboard.ts) reads/writes navigator.clipboard - explicitly
+         grant the page itself the clipboard-read/write permissions-policy features so a strict
+         embedding context doesn't block it before the browser's own per-site permission prompt
+         even gets a chance to ask. -->
+    <meta http-equiv="Permissions-Policy" content="clipboard-read=(self), clipboard-write=(self)" />
     <title>GregLineMaker</title>
   </head>
   <body>

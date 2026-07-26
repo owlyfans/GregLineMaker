@@ -271,6 +271,8 @@
   top: 0;
   left: 0;
   bottom: 0;
+  /* Actual width set inline (ChainSummaryPanel's own drag-resize state) - this is just the
+     pre-hydration/no-JS fallback, same value as MIN_SUMMARY_WIDTH. */
   width: 300px;
   max-width: 85vw;
   z-index: 55;
@@ -285,6 +287,22 @@
 
 .summary-panel.open {
   transform: translateX(0);
+}
+
+.summary-panel-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -4px;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 1;
+  touch-action: none;
+}
+
+.summary-panel-resize-handle:hover,
+.summary-panel-resize-handle:active {
+  background: linear-gradient(90deg, transparent, rgba(91, 157, 217, 0.5) 50%, transparent);
 }
 
 .summary-panel-header {
@@ -389,6 +407,79 @@
 
 .summary-row-chevron.open {
   transform: rotate(90deg);
+}
+
+.summary-power {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-power-total {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e0c14a;
+}
+
+.summary-power-amps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.summary-power-amp-chip {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #22242e;
+  border: 1px solid #353b48;
+}
+
+.summary-power-fuel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid #2a2f3a;
+}
+
+.summary-power-fuel-title {
+  font-size: 0.7rem;
+  color: #5a6070;
+}
+
+.summary-power-fuel-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.summary-power-fuel-machine {
+  color: #8b93a3;
+}
+
+.summary-power-fuel-amount {
+  color: #e0e3ea;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.summary-power-fuel-tag {
+  margin-left: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5fb87a;
+}
+
+.summary-power-fuel-total {
+  font-size: 0.72rem;
+  color: #5a6070;
+  text-align: right;
 }
 
 .summary-contributions {

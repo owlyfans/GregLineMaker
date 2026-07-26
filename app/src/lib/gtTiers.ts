@@ -81,6 +81,16 @@ export function tierIndex(tier?: string): number {
   return TIER_ORDER.indexOf(tier);
 }
 
+/** Steps a tier DOWN the voltage ladder by `stepsDown` rungs (clamped at ULV, the bottom) - used to
+ * work out what tier of engine to build given a machine's own tier and how many rungs lower the
+ * player wants to power it from (see settingsStore's engineTierOffset/lib/power.ts). Undefined
+ * input/unknown tier string passes through unchanged - nothing to step from. */
+export function tierAtOffset(tier: string | undefined, stepsDown: number): string | undefined {
+  const idx = tierIndex(tier);
+  if (idx === -1) return tier;
+  return TIER_ORDER[Math.max(0, idx - stepsDown)];
+}
+
 /** Rank of a tier in TIER_ORDER (0 = ULV, higher = further up the ladder). Untiered recipes
  * (undefined) rank below everything - they're always available regardless of a tier cap. Same
  * ordering as tierIndex above, just Infinity (not -1) for a tier string that isn't in TIER_ORDER

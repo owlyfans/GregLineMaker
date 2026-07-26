@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -29,8 +29,8 @@ import { AddNodeModal } from "./AddNodeModal";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { EdgeColorToolbar } from "./EdgeColorToolbar";
-import { AlignmentToolbar } from "./AlignmentToolbar";
 import { BendableEdge } from "./edges/BendableEdge";
+import { readClipboard, writeClipboard } from "../lib/clipboard";
 
 const nodeTypes = { item: ItemNode, machine: MachineNode, note: NoteNode };
 // Overrides what the (implicit, unset) "default" edge type renders as, so every existing edge
@@ -96,6 +96,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
     addItemNode,
     addMachineNode,
     addNoteNode,
+    pasteNodes,
     removeNodes,
     removeEdge,
     removeEdges,
@@ -114,11 +115,19 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
     setEdgesColor,
     setEdgesRefund,
     setNodesColor,
+    setSelectionColor,
     focusRequest,
   } = useChainStore();
   const favoriteRecipeIds = useFavoritesStore((s) => s.favoriteRecipeIds);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const { screenToFlowPosition, getNode, fitView } = useReactFlow();
+
+  // Last known mouse position over the canvas (screen coords), tracked purely so Ctrl+V/"Paste"
+  // can drop the pasted selection under the cursor - null whenever the mouse isn't over the canvas
+  // (never moved there yet, or has left it), which is exactly "cursor off screen" from the paste
+  // logic's point of view (see pasteAtCursor's fallback to the canvas' own center).
+  const cursorPosRef = useRef<{ x: number; y: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // ChainSummaryPanel lives outside this component's ReactFlowProvider, so "pan/zoom to this
   // node" from clicking a summary entry is relayed through the store instead of a direct call -
@@ -299,6 +308,55 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
     [getUpstreamAncestors, getDownstreamDescendants, removeNodes],
   );
 
+  // Copy/cut/paste go through the system clipboard (see lib/clipboard), not an in-memory variable,
+  // so a selection can be pasted into a different tab, window, or even browser - not just back
+  // into this same page. Reads fresh nodes/edges off the store rather than closing over this
+  // component's own `nodes`/`edges` props, matching the delete-key handler below, so these stay
+  // correct however stale the callbacks' own closures get.
+  const copyNodesToClipboard = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    const { nodes: currentNodes, edges: currentEdges } = useChainStore.getState();
+    const copiedNodes = currentNodes.filter((n) => idSet.has(n.id));
+    const copiedEdges = currentEdges.filter((e) => idSet.has(e.source) && idSet.has(e.target));
+    void writeClipboard(copiedNodes, copiedEdges);
+  }, []);
+
+  const cutNodesToClipboard = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      copyNodesToClipboard(ids);
+      removeNodes(ids);
+    },
+    [copyNodesToClipboard, removeNodes],
+  );
+
+  // Pastes at a specific flow-space point - shared by the pane context menu ("Paste" at the
+  // right-clicked spot) and pasteAtCursor below (Ctrl+V).
+  const pasteAt = useCallback(
+    async (flowAnchor: { x: number; y: number }) => {
+      const data = await readClipboard();
+      if (!data || data.nodes.length === 0) return;
+      pasteNodes(data.nodes, data.edges, flowAnchor);
+    },
+    [pasteNodes],
+  );
+
+  // Ctrl+V's anchor: the cursor's last known canvas position, or - if the cursor was never over
+  // the canvas, or has left it (cursorPosRef null) - the canvas' own center, per spec ("paste at
+  // cursor location, if cursor is off screen paste in the middle").
+  const pasteAtCursor = useCallback(() => {
+    const screenAnchor =
+      cursorPosRef.current ??
+      (() => {
+        const rect = wrapperRef.current?.getBoundingClientRect();
+        return rect
+          ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+          : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      })();
+    void pasteAt(screenToFlowPosition(screenAnchor));
+  }, [pasteAt, screenToFlowPosition]);
+
   const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
     setMenu({ x: event.clientX, y: event.clientY, nodeId: node.id });
@@ -433,6 +491,25 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         selectAllNodes();
         return;
       }
+      if (e.ctrlKey && e.key.toLowerCase() === "c") {
+        const selIds = useChainStore.getState().nodes.filter((n) => n.selected).map((n) => n.id);
+        if (selIds.length === 0) return;
+        e.preventDefault();
+        copyNodesToClipboard(selIds);
+        return;
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === "x") {
+        const selIds = useChainStore.getState().nodes.filter((n) => n.selected).map((n) => n.id);
+        if (selIds.length === 0) return;
+        e.preventDefault();
+        cutNodesToClipboard(selIds);
+        return;
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        pasteAtCursor();
+        return;
+      }
 
       if (!DELETE_KEYS.includes(e.key)) return;
       const state = useChainStore.getState();
@@ -449,7 +526,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [requestDelete, removeEdges, undo, redo, selectAllNodes]);
+  }, [requestDelete, removeEdges, undo, redo, selectAllNodes, copyNodesToClipboard, cutNodesToClipboard, pasteAtCursor]);
 
   // From displayNodes (not the raw store nodes) so refundable/inRefundLoop/possibleRefund reflect
   // what's actually live-computed and currently shown, not whatever was last stored on the node.
@@ -535,12 +612,32 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
           ? [{ label: "Clear color", onClick: () => updateNodeData(menuNode.id, { color: undefined }) }]
           : []),
         { label: "Edit...", onClick: () => setEditingNode({ nodeId: menuNode.id, data: menuNode.data }) },
+        // Right-clicking a node that's part of a larger current selection copies/cuts the whole
+        // selection, same as most drawing/diagramming apps - right-clicking one not in the current
+        // selection acts on just that node.
+        {
+          label: "Copy",
+          onClick: () =>
+            copyNodesToClipboard(
+              selectedNodeIds.includes(menuNode.id) && selectedNodeIds.length > 1 ? selectedNodeIds : [menuNode.id],
+            ),
+        },
+        {
+          label: "Cut",
+          onClick: () =>
+            cutNodesToClipboard(
+              selectedNodeIds.includes(menuNode.id) && selectedNodeIds.length > 1 ? selectedNodeIds : [menuNode.id],
+            ),
+        },
         { label: "Remove", danger: true, onClick: () => requestDelete([menuNode.id]) },
       ]
     : [];
 
   const paneMenuItems: ContextMenuItem[] = paneMenu
-    ? [{ label: "Add node here...", onClick: () => setAddNodeAt(paneMenu.flowPosition) }]
+    ? [
+        { label: "Add node here...", onClick: () => setAddNodeAt(paneMenu.flowPosition) },
+        { label: "Paste", onClick: () => void pasteAt(paneMenu.flowPosition) },
+      ]
     : [];
 
   const menuEdge = edgeMenu ? edges.find((e) => e.id === edgeMenu.edgeId) : undefined;
@@ -566,7 +663,16 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
   }
 
   return (
-    <div className="chain-view">
+    <div
+      className="chain-view"
+      ref={wrapperRef}
+      onMouseMove={(e) => {
+        cursorPosRef.current = { x: e.clientX, y: e.clientY };
+      }}
+      onMouseLeave={() => {
+        cursorPosRef.current = null;
+      }}
+    >
       <ReactFlow
         nodes={displayNodes}
         edges={displayEdges}
@@ -606,41 +712,22 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
       )}
 
       {(() => {
-        const edgeColorToolbar = selectedEdgeIds.length > 0 && (
-          <EdgeColorToolbar
-            count={selectedEdgeIds.length}
-            colors={EDGE_COLOR_CHOICES}
-            onPick={(color) => setEdgesColor(selectedEdgeIds, color)}
-          />
-        );
-        if (!edgeColorToolbar) {
-          // No edges selected - the common case: node recolor + align combined in one pill.
+        const hasNodes = selectedNodeIds.length >= 1;
+        const hasEdges = selectedEdgeIds.length > 0;
+        if (!hasNodes && !hasEdges) return null;
+
+        if (hasNodes && hasEdges) {
+          // Both caught in the same selection (an edge auto-selects once both its endpoints are
+          // marquee-selected, but a lone edge can also be Shift-clicked in alongside nodes) - one
+          // swatch bar recolors everything selected instead of nodes and edges needing separate
+          // clicks on two side-by-side toolbars. NODE_COLOR_CHOICES' `swatch` values are the exact
+          // same hex as EDGE_COLOR_CHOICES (see chainStore) - same swatch click, matching colors on
+          // both node and edge.
           return (
-            selectedNodeIds.length >= 1 && (
-              <SelectionToolbar
-                count={selectedNodeIds.length}
-                colors={NODE_COLOR_CHOICES}
-                onRecolor={(choice) => setNodesColor(selectedNodeIds, choice)}
-                onSpaceOutHorizontal={() => spaceOutNodes(selectedNodeIds, "x")}
-                onSpaceOutVertical={() => spaceOutNodes(selectedNodeIds, "y")}
-                onAlignLeft={() => alignNodes(selectedNodeIds, "x", "start")}
-                onAlignHCenter={() => alignNodes(selectedNodeIds, "x", "center")}
-                onAlignRight={() => alignNodes(selectedNodeIds, "x", "end")}
-                onAlignTop={() => alignNodes(selectedNodeIds, "y", "start")}
-                onAlignVCenter={() => alignNodes(selectedNodeIds, "y", "center")}
-                onAlignBottom={() => alignNodes(selectedNodeIds, "y", "end")}
-              />
-            )
-          );
-        }
-        if (selectedNodeIds.length < 2) return edgeColorToolbar;
-        // An edge got auto-selected alongside a multi-node selection (react-flow selects an edge
-        // once both its endpoints are marquee-selected) - show both toolbars side by side (color
-        // left, align right) instead of the edge color picker replacing align entirely.
-        return (
-          <div className="floating-toolbar-dock">
-            {edgeColorToolbar}
-            <AlignmentToolbar
+            <SelectionToolbar
+              count={selectedNodeIds.length + selectedEdgeIds.length}
+              colors={NODE_COLOR_CHOICES}
+              onRecolor={(choice) => setSelectionColor(selectedNodeIds, selectedEdgeIds, choice, choice.swatch)}
               onSpaceOutHorizontal={() => spaceOutNodes(selectedNodeIds, "x")}
               onSpaceOutVertical={() => spaceOutNodes(selectedNodeIds, "y")}
               onAlignLeft={() => alignNodes(selectedNodeIds, "x", "start")}
@@ -650,7 +737,33 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
               onAlignVCenter={() => alignNodes(selectedNodeIds, "y", "center")}
               onAlignBottom={() => alignNodes(selectedNodeIds, "y", "end")}
             />
-          </div>
+          );
+        }
+
+        if (hasNodes) {
+          return (
+            <SelectionToolbar
+              count={selectedNodeIds.length}
+              colors={NODE_COLOR_CHOICES}
+              onRecolor={(choice) => setNodesColor(selectedNodeIds, choice)}
+              onSpaceOutHorizontal={() => spaceOutNodes(selectedNodeIds, "x")}
+              onSpaceOutVertical={() => spaceOutNodes(selectedNodeIds, "y")}
+              onAlignLeft={() => alignNodes(selectedNodeIds, "x", "start")}
+              onAlignHCenter={() => alignNodes(selectedNodeIds, "x", "center")}
+              onAlignRight={() => alignNodes(selectedNodeIds, "x", "end")}
+              onAlignTop={() => alignNodes(selectedNodeIds, "y", "start")}
+              onAlignVCenter={() => alignNodes(selectedNodeIds, "y", "center")}
+              onAlignBottom={() => alignNodes(selectedNodeIds, "y", "end")}
+            />
+          );
+        }
+
+        return (
+          <EdgeColorToolbar
+            count={selectedEdgeIds.length}
+            colors={EDGE_COLOR_CHOICES}
+            onPick={(color) => setEdgesColor(selectedEdgeIds, color)}
+          />
         );
       })()}
 
