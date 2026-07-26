@@ -6,6 +6,7 @@ import ReactFlow, {
   ReactFlowProvider,
   SelectionMode,
   useReactFlow,
+  type Connection,
   type Edge,
   type Node,
 } from "reactflow";
@@ -17,6 +18,7 @@ import { useFavoritesStore } from "../state/favoritesStore";
 import { nodeKey } from "../solver/solve";
 import { buildInputIndex, detectActiveRefundLoops, findRefundPaths, type RefundPath } from "../solver/refund";
 import { formatDuration, parallelizedTicks } from "../lib/productionTime";
+import { machineHeatRequirement, recipeForItem } from "../lib/machineRecipes";
 import { effectiveDurationTicks } from "../lib/coils";
 import { ItemNode } from "./nodes/ItemNode";
 import { MachineNode } from "./nodes/MachineNode";
@@ -62,6 +64,18 @@ interface RecipeModalState {
   direction: "from" | "into";
 }
 
+/** Dragging an item node's connection onto a machine node (configured or not - a multiblock can
+ * run several unrelated recipes at once via separate hatches, see lib/machineRecipes.ts) - the edge
+ * itself already got wired plainly (see handleConnect), this just tracks which machine/item pair
+ * the recipe picker below is being shown for so onPick can call applyRecipeToMachine instead of
+ * expandForward (which would otherwise build a whole new machine node). */
+interface MachineAttachState {
+  machineNodeId: string;
+  fromNodeId: string;
+  data: ItemNodeData;
+  restrictToMachine?: string;
+}
+
 interface DeleteRequest {
   primaryIds: string[];
   upstreamIds: string[];
@@ -91,7 +105,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
     edges,
     onNodesChange,
     onEdgesChange,
-    onConnect,
+    connectWithRecipe,
     reconnectEdge,
     addItemNode,
     addMachineNode,
@@ -104,6 +118,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
     getDownstreamDescendants,
     expandWithRecipe,
     expandForward,
+    applyRecipeToMachine,
     applyRefundPath,
     updateNodeData,
     updateNodePositions,
@@ -144,6 +159,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
   const [paneMenu, setPaneMenu] = useState<PaneMenuState | null>(null);
   const [addNodeAt, setAddNodeAt] = useState<{ x: number; y: number } | null>(null);
   const [recipeModalFor, setRecipeModalFor] = useState<RecipeModalState | null>(null);
+  const [machineAttachFor, setMachineAttachFor] = useState<MachineAttachState | null>(null);
   const [editingNode, setEditingNode] = useState<{ nodeId: string; data: ChainNodeData } | null>(null);
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
   const [refundSuggestionsFor, setRefundSuggestionsFor] = useState<{
@@ -234,7 +250,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
             ...n,
             data: {
               ...n.data,
-              recipeHeatRequirement: n.data.recipeId ? recipesById.get(n.data.recipeId)?.heatRequirement : undefined,
+              recipeHeatRequirement: machineHeatRequirement(n.data as MachineNodeData, recipesById),
             } as MachineNodeData,
           };
         }
@@ -258,7 +274,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         if (!sourceNode || sourceNode.data.kind !== "machine" || !targetNode || targetNode.data.kind !== "item") return e;
         const machineData = sourceNode.data as MachineNodeData;
         const targetData = targetNode.data as ItemNodeData;
-        const recipe = machineData.recipeId ? recipesById.get(machineData.recipeId) : undefined;
+        const recipe = recipeForItem(machineData, recipesById, "output", targetData.materialKind, targetData.itemId);
         if (!recipe?.durationTicks || !targetData.amount) return e;
         const outputIo = recipe.outputs.find((io) => io.kind === targetData.materialKind && io.ids.includes(targetData.itemId));
         if (!outputIo) return e;
@@ -457,6 +473,51 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
   const onNodeDragStart = useCallback(() => {
     checkpoint();
   }, [checkpoint]);
+
+  // Manually dragging a connection between an existing item and machine node - two distinct cases:
+  //
+  // - Machine -> item: if any of the machine's attached recipes (a multiblock can run several at
+  //   once through separate hatches - see lib/machineRecipes.ts) actually produces this item,
+  //   connectWithRecipe recalculates the target's amount off THAT recipe's own output instead of
+  //   leaving whatever amount was already there unrelated to the new wiring.
+  // - Item -> machine (configured or not - a real multiblock can run several unrelated recipes at
+  //   once via different hatch pairs, so an already-configured machine is still a valid target for
+  //   another one): wire a bare edge immediately (so it's visible right away), then open the recipe
+  //   picker scoped to that machine's own type (machineAttachFor below) - picking a recipe there
+  //   calls applyRecipeToMachine, which attaches it to THIS machine node (not a fresh one, and
+  //   alongside any recipes already attached) and reuses/bumps any of its other inputs that already
+  //   exist elsewhere on canvas instead of duplicating them.
+  //
+  // Anything else (machine -> machine, item -> item, ...) just wires a bare connection, same as the
+  // plain onConnect this replaces.
+  const handleConnect = useCallback(
+    (connection: Connection) => {
+      const sourceNode = connection.source ? nodeById.get(connection.source) : undefined;
+      const targetNode = connection.target ? nodeById.get(connection.target) : undefined;
+
+      if (sourceNode?.data.kind === "machine" && targetNode?.data.kind === "item") {
+        const machineData = sourceNode.data as MachineNodeData;
+        const targetData = targetNode.data as ItemNodeData;
+        const recipe = recipeForItem(machineData, recipesById, "output", targetData.materialKind, targetData.itemId);
+        connectWithRecipe(connection, recipe);
+        return;
+      }
+
+      if (sourceNode?.data.kind === "item" && targetNode?.data.kind === "machine" && connection.source && connection.target) {
+        connectWithRecipe(connection, undefined);
+        setMachineAttachFor({
+          machineNodeId: connection.target,
+          fromNodeId: connection.source,
+          data: sourceNode.data as ItemNodeData,
+          restrictToMachine: (targetNode.data as MachineNodeData).machineId,
+        });
+        return;
+      }
+
+      connectWithRecipe(connection, undefined);
+    },
+    [nodeById, recipesById, connectWithRecipe],
+  );
 
   const onPaneContextMenu = useCallback(
     (event: MouseEvent | React.MouseEvent) => {
@@ -678,7 +739,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
         edges={displayEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={handleConnect}
         onReconnect={(oldEdge, connection) => reconnectEdge(oldEdge.id, connection)}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
@@ -815,6 +876,27 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
           }
           onClose={() => setRecipeModalFor(null)}
           onPick={handleRecipePicked}
+        />
+      )}
+
+      {machineAttachFor && (
+        <RecipePickerModal
+          db={db}
+          direction="into"
+          targetKind={machineAttachFor.data.materialKind}
+          targetId={machineAttachFor.data.itemId}
+          targetLabel={machineAttachFor.data.label}
+          restrictToMachine={machineAttachFor.restrictToMachine}
+          onClose={() => setMachineAttachFor(null)}
+          onPick={(recipe) => {
+            applyRecipeToMachine(
+              machineAttachFor.machineNodeId,
+              machineAttachFor.fromNodeId,
+              recipe,
+              (kind, id) => resolveName(db, kind, id),
+            );
+            setMachineAttachFor(null);
+          }}
         />
       )}
 

@@ -58,8 +58,21 @@ export interface MachineNodeData {
   label: string;
   tier?: string;
   sublabel?: string;
-  /** The recipe this machine instance represents, if it was added via the recipe picker. */
+  /** The FIRST recipe this machine instance represents, if any - `recipeIds` below is the full
+   * picture for a multi-hatch machine (see there); this stays in sync as `recipeIds[0]` and exists
+   * so single-recipe-only code (icon lookup context, EditNodeModal's recipe display, ...) doesn't
+   * need to special-case the array. */
   recipeId?: string;
+  /** ALL recipes currently running on this ONE machine instance via separate input/output hatches -
+   * a real GTCEu multiblock (Large Chemical Reactor, Large Boiler, ...) can run several unrelated
+   * recipes at once this way, each through its own hatch pair, sharing just the one physical block
+   * (and therefore one build tier/coil). Built up by repeatedly dragging a different item's
+   * connection onto this same machine node and picking another recipe for it (see ChainView's
+   * machineAttachFor / chainStore's applyRecipeToMachine) - undefined/[recipeId] for the ordinary
+   * single-recipe case (expandWithRecipe/expandForward/applyRefundPath still only ever attach one).
+   * EU/t and time-to-produce calcs sum/resolve across every entry here (see lib/machineRecipes.ts),
+   * not just `recipeId` alone. */
+  recipeIds?: string[];
   /** The recipe's raw namespaced machine id (e.g. "gtceu:macerator"), if known - used to look up
    * an icon (see lib/machineIcon.ts) and to decide whether this node needs a Coil selector below
    * (see lib/coils' COIL_MACHINE_TYPES). Set by both the recipe picker and the manual Add/Edit
@@ -84,6 +97,39 @@ export interface MachineNodeData {
   parallelCount?: number;
   color?: string;
   borderColor?: string;
+  /** One entry per recipe that was attached to this machine by dragging an existing item node into
+   * it (chainStore's applyRecipeToMachine), not via the "Create from/into" pickers elsewhere (which
+   * always build a fresh machine node instead of reusing one) - a machine can accumulate several of
+   * these as more items get connected into it (see `recipeIds` above). Each records exactly what
+   * that one attach auto-added so disconnecting ITS OWN primary input edge can precisely reverse
+   * JUST that recipe (leaving any others still attached to this machine untouched) - see
+   * chainStore.ts's removeEdge/removeEdges. */
+  appliedRecipes?: {
+    recipeId: string;
+    /** The item node whose connection into this machine triggered the recipe picker for this
+     * specific recipe - disconnecting THIS edge (not any other input this machine might also have,
+     * including ones belonging to its other attached recipes) is what triggers reversing it. */
+    primaryInputNodeId: string;
+    /** Every other input this recipe needed, and how much of it THIS attach contributed - an
+     * existing matching node had its amount increased by this much rather than a duplicate being
+     * created (see applyRecipeToMachine); reversal subtracts exactly this much back, never deletes
+     * the node outright, since it may be feeding something else too (this recipe's other inputs, a
+     * different attached recipe, or an unrelated part of the chain). */
+    otherInputContribs: { nodeId: string; amount: number }[];
+    /** Every output this recipe produced, and how much of it THIS attach contributed - same reuse
+     * logic as otherInputContribs: an existing matching item node gets its amount increased rather
+     * than a duplicate being created. `isNew` marks which: reversal fully removes a node this attach
+     * created fresh (`isNew: true`), but only subtracts the contributed amount back from one that
+     * already existed (`isNew: false`) - it may be needed elsewhere (another recipe's own output, a
+     * different attached recipe on this same machine, or an unrelated part of the chain). */
+    outputContribs: { nodeId: string; amount: number; isNew: boolean }[];
+  }[];
+  /** This machine's tier from before its FIRST recipe attach overwrote it with that recipe's own
+   * required tier (e.g. manually set at Add Node time) - restored as-is once the LAST attached
+   * recipe gets disconnected, reverting the whole machine back to bare/unconfigured. Untouched by
+   * every attach after the first, since the block's build tier doesn't change just because another
+   * hatch pair started running a different recipe on it. */
+  preRecipeTier?: string;
 }
 
 export interface NoteNodeData {

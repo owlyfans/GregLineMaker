@@ -7,6 +7,7 @@ import type { MachineNodeData } from "../types/chain";
 import type { GeneratorFuel, IoKind, RecipeDatabase } from "../types/recipe";
 import { humanizeMachine } from "../solver/solve";
 import { overclockedVoltage, tierAtOffset, tierIndex, tierVoltage } from "./gtTiers";
+import { machineRecipes } from "./machineRecipes";
 
 // The dump's generators.json picks up EVERY EU-output recipe it finds (solar panels, plasma/
 // nuclear turbines, ...), not just steam/gas - confirmed against a real dump, which turned up
@@ -67,13 +68,17 @@ export interface PowerSummary {
   fuelPlans: EngineFuelPlan[];
 }
 
-/** Sums each machine node's own EU/t draw (its attached recipe's voltage, overclocked up to the
- * machine's own built tier - see gtTiers' overclockedVoltage) times how many parallel instances it
- * represents (MachineNodeData.parallelCount), then buckets the amps that implies per tier. Ignores
- * machines with no attached recipe, or whose recipe carries no EU cost at all (untiered crafting,
- * TFG barrels, ...) - nothing to compute there. A machine with no tier of its own set yet (added via
- * the plain Add Node dialog rather than the recipe picker) is assumed to run at its recipe's own
- * tier, unoverclocked - the same fallback overclockedVoltage itself already uses.
+/** Sums each machine node's own EU/t draw - a multiblock can run several unrelated recipes at once
+ * through separate hatches (see lib/machineRecipes.ts's machineRecipes/MachineNodeData.recipeIds),
+ * so this sums EVERY attached recipe's own voltage (each overclocked up to the machine's own built
+ * tier - see gtTiers' overclockedVoltage), not just one, times how many parallel instances the
+ * whole node represents (MachineNodeData.parallelCount applies to the physical block, so it
+ * multiplies every attached recipe's draw the same way), then buckets the amps that implies per
+ * tier. Ignores machines with no attached recipe, and any individual attached recipe that carries
+ * no EU cost at all (untiered crafting, TFG barrels, ...) - nothing to compute for that one. A
+ * machine with no tier of its own set yet (added via the plain Add Node dialog rather than the
+ * recipe picker) is assumed to run at its recipe's own tier, unoverclocked - the same fallback
+ * overclockedVoltage itself already uses.
  *
  * Each tier's `engineCount` assumes a single-block, non-turbine Steam/Combustion/Gas engine (1A @
  * its own tier, fixed) - GTCEu's rotor-based turbine generators output more than that depending on
@@ -108,21 +113,23 @@ export function computePowerSummary(
   for (const n of nodes) {
     if (n.data.kind !== "machine") continue;
     const data = n.data as MachineNodeData;
-    const recipe = data.recipeId ? recipesById.get(data.recipeId) : undefined;
-    if (!recipe || recipe.voltage === undefined) continue;
-
-    const tier = data.tier ?? recipe.tier;
-    if (!tier) continue;
-
     const count = data.parallelCount && data.parallelCount > 1 ? data.parallelCount : 1;
-    const euTotal = overclockedVoltage(recipe.voltage, recipe.tier, data.tier) * count;
-    totalEUt += euTotal;
 
-    const baseTier =
-      availableEngineTier && tierIndex(availableEngineTier) < tierIndex(tier) ? availableEngineTier : tier;
-    const engineTier = tierAtOffset(baseTier, engineTierOffset);
-    const voltageAtTier = engineTier ? tierVoltage(engineTier) : undefined;
-    if (voltageAtTier && engineTier) ampsByTier.set(engineTier, (ampsByTier.get(engineTier) ?? 0) + euTotal / voltageAtTier);
+    for (const recipe of machineRecipes(data, recipesById)) {
+      if (recipe.voltage === undefined) continue;
+
+      const tier = data.tier ?? recipe.tier;
+      if (!tier) continue;
+
+      const euTotal = overclockedVoltage(recipe.voltage, recipe.tier, data.tier) * count;
+      totalEUt += euTotal;
+
+      const baseTier =
+        availableEngineTier && tierIndex(availableEngineTier) < tierIndex(tier) ? availableEngineTier : tier;
+      const engineTier = tierAtOffset(baseTier, engineTierOffset);
+      const voltageAtTier = engineTier ? tierVoltage(engineTier) : undefined;
+      if (voltageAtTier && engineTier) ampsByTier.set(engineTier, (ampsByTier.get(engineTier) ?? 0) + euTotal / voltageAtTier);
+    }
   }
 
   const sortedAmps = [...ampsByTier.entries()]

@@ -13,6 +13,7 @@ import type { ChainNodeData, ItemNodeData, MachineNodeData, NoteNodeData } from 
 import type { Recipe } from "../types/recipe";
 import { humanizeMachine, isConfigItem, isToolItem } from "../solver/solve";
 import type { RefundPath } from "../solver/refund";
+import { machineRecipeIds } from "../lib/machineRecipes";
 
 export type FlowNode = Node<ChainNodeData>;
 
@@ -95,6 +96,108 @@ export function formatAmount(n: number): string {
   return String(rounded);
 }
 
+/** Shared by removeEdge/removeEdges - if any edge about to be removed is the "primary" input edge
+ * of one of a machine's appliedRecipes (a multi-hatch machine can have several - see
+ * types/chain.ts's MachineNodeData / chainStore's applyRecipeToMachine), also reverses everything
+ * THAT ONE recipe's application auto-added: subtracts each other-input node's contributed amount
+ * (never deletes the node outright - it might be feeding something else too, including this same
+ * machine's other attached recipes), drops that input's now-unneeded edge to this machine, and
+ * removes every output node that attach created. Any other recipe still attached to the machine is
+ * left completely untouched; only once the LAST one is removed does the machine reset back to a
+ * bare (recipe-less) node - tier restored to whatever it was before its first attach. A no-op
+ * beyond the plain removal for any edge that isn't such a primary edge. */
+function reverseAppliedRecipes(nodes: FlowNode[], edges: Edge[], removedEdgeIds: Set<string>): { nodes: FlowNode[]; edges: Edge[] } {
+  const removedEdges = edges.filter((e) => removedEdgeIds.has(e.id));
+  const amountDeltas = new Map<string, number>();
+  const extraEdgeIdsToRemove = new Set<string>();
+  const extraNodeIdsToRemove = new Set<string>();
+  const machinePatches = new Map<string, Partial<MachineNodeData>>();
+
+  for (const n of nodes) {
+    if (n.data.kind !== "machine") continue;
+    const machineData = n.data as MachineNodeData;
+    const applied = machineData.appliedRecipes;
+    if (!applied || applied.length === 0) continue;
+    const reversed = applied.find((a) => removedEdges.some((e) => e.source === a.primaryInputNodeId && e.target === n.id));
+    if (!reversed) continue;
+
+    for (const contrib of reversed.otherInputContribs) {
+      amountDeltas.set(contrib.nodeId, (amountDeltas.get(contrib.nodeId) ?? 0) + contrib.amount);
+      const feedEdge = edges.find((e) => e.source === contrib.nodeId && e.target === n.id);
+      if (feedEdge) extraEdgeIdsToRemove.add(feedEdge.id);
+    }
+    for (const contrib of reversed.outputContribs) {
+      if (contrib.isNew) {
+        // This attach created the node fresh - nothing else could be relying on it yet, remove it
+        // outright (its edges go with it via extraNodeIdsToRemove's own filtering below).
+        extraNodeIdsToRemove.add(contrib.nodeId);
+      } else {
+        // Was an existing node this attach merged into instead of duplicating - only take back what
+        // THIS attach added, same as an other-input contribution; it may still be needed elsewhere.
+        amountDeltas.set(contrib.nodeId, (amountDeltas.get(contrib.nodeId) ?? 0) + contrib.amount);
+        const feedEdge = edges.find((e) => e.source === n.id && e.target === contrib.nodeId);
+        if (feedEdge) extraEdgeIdsToRemove.add(feedEdge.id);
+      }
+    }
+
+    const remaining = applied.filter((a) => a !== reversed);
+    const remainingIds = remaining.map((a) => a.recipeId);
+    if (remaining.length === 0) {
+      // Last recipe on this machine just left - revert it fully back to bare/unconfigured.
+      machinePatches.set(n.id, {
+        recipeId: undefined,
+        recipeIds: undefined,
+        appliedRecipes: undefined,
+        tier: machineData.preRecipeTier,
+        preRecipeTier: undefined,
+        label: machineData.machineId ? humanizeMachine(machineData.machineId) : machineData.label,
+      });
+    } else {
+      // Other recipes still running on this machine via their own hatches - leave tier/coil alone,
+      // just drop the one that got disconnected (and the label's recipe count along with it).
+      machinePatches.set(n.id, {
+        recipeId: remainingIds[0],
+        recipeIds: remainingIds,
+        appliedRecipes: remaining,
+        label:
+          remaining.length > 1 && machineData.machineId
+            ? `${humanizeMachine(machineData.machineId)} (${remaining.length} recipes)`
+            : machineData.machineId
+              ? humanizeMachine(machineData.machineId)
+              : machineData.label,
+      });
+    }
+  }
+
+  if (machinePatches.size === 0) {
+    return { nodes, edges: edges.filter((e) => !removedEdgeIds.has(e.id)) };
+  }
+
+  const nextNodes = nodes
+    .filter((n) => !extraNodeIdsToRemove.has(n.id))
+    .map((n) => {
+      const machinePatch = machinePatches.get(n.id);
+      if (machinePatch) return { ...n, data: { ...n.data, ...machinePatch } as ChainNodeData };
+      const delta = amountDeltas.get(n.id);
+      if (delta && n.data.kind === "item") {
+        const current = (n.data as ItemNodeData).amount ? Number((n.data as ItemNodeData).amount) : 0;
+        const next = Math.max(0, (Number.isFinite(current) ? current : 0) - delta);
+        return { ...n, data: { ...n.data, amount: formatAmount(next) } as ChainNodeData };
+      }
+      return n;
+    });
+
+  const nextEdges = edges.filter(
+    (e) =>
+      !removedEdgeIds.has(e.id) &&
+      !extraEdgeIdsToRemove.has(e.id) &&
+      !extraNodeIdsToRemove.has(e.source) &&
+      !extraNodeIdsToRemove.has(e.target),
+  );
+
+  return { nodes: nextNodes, edges: nextEdges };
+}
+
 interface ChainStoreState {
   nodes: FlowNode[];
   edges: Edge[];
@@ -140,6 +243,16 @@ interface ChainStoreState {
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
+  /** Wires a manual connection same as onConnect, but if `recipe` is given and its outputs include
+   * the target item node's id, also recalculates the target's amount off that recipe's output -
+   * same whole-batch rounding as expandWithRecipe (adopts the recipe's own output amount if the
+   * target had none yet, otherwise rounds up to enough whole runs to cover what's already there and
+   * tracks any surplus as `leftover`). Lets a plain drag-to-connect from a machine onto an EXISTING
+   * item node behave like "this machine actually makes this" instead of leaving whatever amount was
+   * already on that node unrelated to the new wiring. Falls back to a bare connection (no amount
+   * change) whenever `recipe` is undefined, the target isn't an item node, or the recipe just
+   * doesn't produce that item - callers don't need to pre-check any of that themselves. */
+  connectWithRecipe: (connection: Connection, recipe: Recipe | undefined) => void;
   /** Selects every node (Ctrl+A) - a selection change, not a data edit, so it doesn't checkpoint. */
   selectAllNodes: () => void;
   /** Moves an existing edge's endpoint(s) to a different node/handle - dragging a connection's tip
@@ -228,6 +341,27 @@ interface ChainStoreState {
    * ("what can I turn this into"), quantity-scaled off fromNodeId's current amount the same way.
    */
   expandForward: (
+    fromNodeId: string,
+    recipe: Recipe,
+    resolveName: (kind: "item" | "fluid", id: string) => string,
+  ) => void;
+
+  /**
+   * Attaches `recipe` to an EXISTING machine node instead of creating a fresh one (as
+   * expandForward always does) - used when the user manually drags an item node's connection onto
+   * an unconfigured machine node and picks a recipe for it (see ChainView). `fromNodeId` must be
+   * one of `recipe`'s inputs, and the fromNodeId -> machineNodeId edge must already exist (the drag
+   * itself creates it) - this only scales fromNodeId's amount and adds the rest.
+   *
+   * For each of the recipe's OTHER inputs, reuses an existing item node with the same id anywhere
+   * on canvas if one exists (bumping its amount by what's newly needed) instead of always creating
+   * a duplicate - unlike expandWithRecipe/expandForward, which never reuse. Every output gets a
+   * fresh node, same as those two. Records exactly what got added as the machine's own
+   * `appliedRecipe` (see types/chain.ts) so disconnecting the primary input edge later can reverse
+   * it precisely - see removeEdge/removeEdges.
+   */
+  applyRecipeToMachine: (
+    machineNodeId: string,
     fromNodeId: string,
     recipe: Recipe,
     resolveName: (kind: "item" | "fluid", id: string) => string,
@@ -431,6 +565,49 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
       });
     },
 
+    connectWithRecipe: (connection, recipe) => {
+      if (!connection.source || !connection.target) return;
+      get().checkpoint();
+      const { nodes, edges } = get();
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      const targetData = targetNode?.data.kind === "item" ? (targetNode.data as ItemNodeData) : undefined;
+      const outputIo = recipe && targetData
+        ? recipe.outputs.find((io) => io.kind === targetData.materialKind && io.ids.includes(targetData.itemId))
+        : undefined;
+
+      let newNodes = nodes;
+      if (targetData && outputIo) {
+        const existingAmount = targetData.amount ? Number(targetData.amount) : undefined;
+        const hasExisting = existingAmount !== undefined && !Number.isNaN(existingAmount) && existingAmount > 0;
+        // Same whole-batch rounding as expandWithRecipe: recipes don't run fractionally, so round
+        // UP to enough whole runs to cover what's already there, tracking any surplus as leftover.
+        const runs = hasExisting ? Math.max(1, Math.ceil(existingAmount! / outputIo.amount)) : 1;
+        const actualOutput = outputIo.amount * runs;
+        const patch: Partial<ItemNodeData> | null = !hasExisting
+          ? { amount: formatAmount(outputIo.amount), chancePercent: outputIo.chancePercent, leftover: undefined }
+          : actualOutput !== existingAmount
+            ? {
+                amount: formatAmount(actualOutput),
+                leftover: actualOutput > existingAmount! ? formatAmount(actualOutput - existingAmount!) : undefined,
+              }
+            : null;
+        if (patch) {
+          newNodes = nodes.map((n) => (n.id === connection.target ? { ...n, data: { ...n.data, ...patch } as ChainNodeData } : n));
+        }
+      }
+
+      set({
+        nodes: newNodes,
+        edges: [
+          ...edges,
+          makeEdge(connection.source, connection.target, {
+            sourceHandle: connection.sourceHandle,
+            targetHandle: connection.targetHandle,
+          }),
+        ],
+      });
+    },
+
     addItemNode: (kind, itemId, label, position, amount) => {
       get().checkpoint();
       const id = newId(kind);
@@ -516,13 +693,12 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
 
     removeEdge: (id) => {
       get().checkpoint();
-      set({ edges: get().edges.filter((e) => e.id !== id) });
+      set(reverseAppliedRecipes(get().nodes, get().edges, new Set([id])));
     },
 
     removeEdges: (ids) => {
       get().checkpoint();
-      const idSet = new Set(ids);
-      set({ edges: get().edges.filter((e) => !idSet.has(e.id)) });
+      set(reverseAppliedRecipes(get().nodes, get().edges, new Set(ids)));
     },
 
     getUpstreamAncestors: (ids) => {
@@ -758,6 +934,148 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
     set({ nodes: [...deselectAll(get().nodes), ...newNodes], edges: [...get().edges, ...newEdges] });
   },
 
+  applyRecipeToMachine: (machineNodeId, fromNodeId, recipe, resolveName) => {
+    get().checkpoint();
+    const snapshot = get().nodes;
+    const machineNode = snapshot.find((n) => n.id === machineNodeId);
+    const fromNode = snapshot.find((n) => n.id === fromNodeId);
+    if (!machineNode || machineNode.data.kind !== "machine" || !fromNode || fromNode.data.kind !== "item") return;
+    const machineData = machineNode.data as MachineNodeData;
+    const fromData = fromNode.data as ItemNodeData;
+
+    const inputIo = recipe.inputs.find((io) => io.kind === fromData.materialKind && io.ids.includes(fromData.itemId));
+    if (!inputIo) return;
+
+    const existingAmount = fromData.amount ? Number(fromData.amount) : undefined;
+    const hasExisting = existingAmount !== undefined && !Number.isNaN(existingAmount) && existingAmount > 0;
+    const multiplier = hasExisting ? existingAmount! / inputIo.amount : 1;
+
+    if (!hasExisting) {
+      // First time this item's supply is being set - adopt the recipe's own input requirement.
+      // patchNodeData (not the public updateNodeData) so this isn't its own separate undo step.
+      patchNodeData(fromNodeId, { amount: formatAmount(inputIo.amount) } as Partial<ItemNodeData>);
+    }
+
+    const newNodes: FlowNode[] = [];
+    const newEdges: Edge[] = [];
+    const otherInputContribs: { nodeId: string; amount: number }[] = [];
+    const machinePos = machineNode.position;
+
+    const otherInputs = recipe.inputs.filter((io) => io !== inputIo && !(io.kind === "item" && isConfigItem(io.ids[0])));
+    otherInputs.forEach((io, i) => {
+      const inputId = io.ids[0];
+      const neededAmount = io.amount * multiplier;
+      const y = machinePos.y + (i - (otherInputs.length - 1) / 2) * 90 - 140;
+
+      // Reuse an existing item node with the same id anywhere on canvas (other than the node that
+      // triggered this) instead of always creating a fresh duplicate - bump its amount by what's
+      // additionally needed here rather than leaving two separate nodes for the same item.
+      const existing = snapshot.find(
+        (n) =>
+          n.id !== fromNodeId &&
+          n.data.kind === "item" &&
+          (n.data as ItemNodeData).materialKind === io.kind &&
+          (n.data as ItemNodeData).itemId === inputId,
+      );
+      if (existing) {
+        const existingData = existing.data as ItemNodeData;
+        const priorAmount = existingData.amount ? Number(existingData.amount) : 0;
+        const nextAmount = (Number.isFinite(priorAmount) ? priorAmount : 0) + neededAmount;
+        patchNodeData(existing.id, { amount: formatAmount(nextAmount) } as Partial<ItemNodeData>);
+        newEdges.push(makeEdge(existing.id, machineNodeId));
+        otherInputContribs.push({ nodeId: existing.id, amount: neededAmount });
+      } else {
+        const nodeId = newId(io.kind);
+        const data: ItemNodeData = {
+          kind: "item",
+          materialKind: io.kind,
+          itemId: inputId,
+          label: resolveName(io.kind, inputId),
+          amount: formatAmount(neededAmount),
+          tool: isToolItem(inputId) || undefined,
+        };
+        newNodes.push({ id: nodeId, type: "item", data, position: { x: machinePos.x - 260, y }, selected: true });
+        newEdges.push(makeEdge(nodeId, machineNodeId));
+        otherInputContribs.push({ nodeId, amount: neededAmount });
+      }
+    });
+
+    const outputCount = recipe.outputs.reduce((n, io) => n + io.ids.length, 0);
+    let outputIndex = 0;
+    const outputContribs: { nodeId: string; amount: number; isNew: boolean }[] = [];
+    for (const io of recipe.outputs) {
+      for (const outId of io.ids) {
+        const y = machinePos.y + (outputIndex - (outputCount - 1) / 2) * 90;
+        outputIndex += 1;
+        const neededAmount = io.amount * multiplier;
+
+        // Same reuse-instead-of-duplicate logic as the other-inputs loop above, just for outputs -
+        // an existing matching item node (including one created earlier in THIS same loop, for a
+        // recipe that lists the same output twice) gets its amount bumped instead of a duplicate.
+        const existing = [...snapshot, ...newNodes].find(
+          (n) =>
+            n.data.kind === "item" &&
+            (n.data as ItemNodeData).materialKind === io.kind &&
+            (n.data as ItemNodeData).itemId === outId,
+        );
+        if (existing) {
+          const existingData = existing.data as ItemNodeData;
+          const priorAmount = existingData.amount ? Number(existingData.amount) : 0;
+          const nextAmount = (Number.isFinite(priorAmount) ? priorAmount : 0) + neededAmount;
+          patchNodeData(existing.id, { amount: formatAmount(nextAmount) } as Partial<ItemNodeData>);
+          newEdges.push(makeEdge(machineNodeId, existing.id));
+          outputContribs.push({ nodeId: existing.id, amount: neededAmount, isNew: false });
+        } else {
+          const nodeId = newId(io.kind);
+          const data: ItemNodeData = {
+            kind: "item",
+            materialKind: io.kind,
+            itemId: outId,
+            label: resolveName(io.kind, outId),
+            amount: formatAmount(neededAmount),
+            chancePercent: io.chancePercent,
+          };
+          newNodes.push({ id: nodeId, type: "item", data, position: { x: machinePos.x + 260, y }, selected: true });
+          newEdges.push(makeEdge(machineNodeId, nodeId));
+          outputContribs.push({ nodeId, amount: neededAmount, isNew: true });
+        }
+      }
+    }
+
+    // First recipe on this machine (no others attached yet) adopts the recipe's own required tier
+    // (and label), same as expandWithRecipe/expandForward always have - a later recipe attached via
+    // a different hatch runs on the SAME physical block, so it doesn't get to change either; the
+    // block's tier was already decided by whichever recipe (or manual pick) got there first.
+    const priorRecipeIds = machineRecipeIds(machineData);
+    const isFirstRecipe = priorRecipeIds.length === 0;
+    const recipeIds = [...priorRecipeIds, recipe.id];
+    const appliedRecipes = [
+      ...(machineData.appliedRecipes ?? []),
+      { recipeId: recipe.id, primaryInputNodeId: fromNodeId, otherInputContribs, outputContribs },
+    ];
+
+    const newMachineData: MachineNodeData = {
+      ...machineData,
+      label: isFirstRecipe
+        ? humanizeMachine(recipe.machine)
+        : `${humanizeMachine(recipe.machine)} (${recipeIds.length} recipes)`,
+      tier: isFirstRecipe ? recipe.tier : machineData.tier,
+      preRecipeTier: isFirstRecipe ? machineData.tier : machineData.preRecipeTier,
+      recipeId: recipeIds[0],
+      recipeIds,
+      machineId: recipe.machine,
+      appliedRecipes,
+    };
+
+    set({
+      nodes: [
+        ...deselectAll(get().nodes).map((n) => (n.id === machineNodeId ? { ...n, data: newMachineData } : n)),
+        ...newNodes,
+      ],
+      edges: [...get().edges, ...newEdges],
+    });
+  },
+
   applyRefundPath: (fromNodeId, path, resolveName) => {
     get().checkpoint();
     const { nodes } = get();
@@ -872,9 +1190,23 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
       visitedMachines.add(machineId);
       const machineNode = nodeMap.get(machineId);
       if (!machineNode || machineNode.data.kind !== "machine") return;
-      const recipe = machineNode.data.recipeId ? resolveRecipe(machineNode.data.recipeId) : undefined;
-
+      const machineData = machineNode.data as MachineNodeData;
       const viaData = nodeMap.get(viaNodeId)!.data as ItemNodeData;
+
+      // A multi-hatch machine can run several independent recipes at once (see
+      // lib/machineRecipes.ts) - only the ONE that actually involves viaData governs this
+      // propagation; an edge belonging to a DIFFERENT attached recipe on the same physical block is
+      // unrelated to it (see the `belongsToAnotherRecipe` skip below).
+      const candidateIds = machineRecipeIds(machineData);
+      let recipe: Recipe | undefined;
+      for (const id of candidateIds) {
+        const r = resolveRecipe(id);
+        if (r && findIo(r, viaData)) {
+          recipe = r;
+          break;
+        }
+      }
+
       const viaIo = recipe ? findIo(recipe, viaData) : undefined;
       const viaBase = viaIo?.amount ?? currentAmount(viaNodeId);
       const rawMultiplier = viaBase && viaBase > 0 ? viaNewAmount / viaBase : 1;
@@ -898,6 +1230,18 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
         if (!otherNode || otherNode.data.kind !== "item") continue;
         const otherData = otherNode.data as ItemNodeData;
         const otherIo = recipe ? findIo(recipe, otherData) : undefined;
+        if (!otherIo && candidateIds.length > 1) {
+          // This edge's item doesn't belong to the recipe driving this propagation - if it belongs
+          // to one of the machine's OTHER attached recipes (a different hatch), it's genuinely
+          // unrelated and shouldn't be touched at all, unlike a merely-stray edge under an ordinary
+          // single-recipe machine (which still gets the graceful continuous-ratio fallback below).
+          const belongsToAnotherRecipe = candidateIds.some((id) => {
+            if (recipe && id === recipe.id) return false;
+            const other = resolveRecipe(id);
+            return other ? !!findIo(other, otherData) : false;
+          });
+          if (belongsToAnotherRecipe) continue;
+        }
         const otherBase = otherIo?.amount ?? currentAmount(otherId);
         if (otherBase === undefined) continue;
 

@@ -3,6 +3,7 @@ import type { FlowNode } from "../state/chainStore";
 import type { ItemNodeData, MachineNodeData } from "../types/chain";
 import type { Recipe, RecipeDatabase } from "../types/recipe";
 import { effectiveDurationTicks } from "./coils";
+import { machineRecipes, recipeForItem } from "./machineRecipes";
 
 export interface FinalOutputTime {
   nodeId: string;
@@ -77,26 +78,40 @@ function timeToProduce(
     if (e.target !== itemNodeId) continue;
     const machineNode = nodeById.get(e.source);
     if (!machineNode || machineNode.data.kind !== "machine") continue;
-    maxTime = Math.max(maxTime, timeForMachine(machineNode.id, nodeById, edges, recipesById, machineTimeCache, visiting));
+    maxTime = Math.max(
+      maxTime,
+      timeForMachine(machineNode.id, itemNodeId, nodeById, edges, recipesById, machineTimeCache, visiting),
+    );
   }
   visiting.delete(itemNodeId);
   return maxTime;
 }
 
+// A multiblock can run several unrelated recipes at once through separate hatches (see
+// lib/machineRecipes.ts) - each with its own independent timing, so this is keyed by
+// `${machineId}::${forItemNodeId}` rather than machineId alone: two different downstream items fed
+// by two different hatches on the SAME machine node get their own cached time instead of sharing
+// one blended number.
 function timeForMachine(
   machineId: string,
+  forItemNodeId: string,
   nodeById: Map<string, FlowNode>,
   edges: Edge[],
   recipesById: Map<string, Recipe>,
   machineTimeCache: Map<string, number>,
   visiting: Set<string>,
 ): number {
-  const cached = machineTimeCache.get(machineId);
+  const cacheKey = `${machineId}::${forItemNodeId}`;
+  const cached = machineTimeCache.get(cacheKey);
   if (cached !== undefined) return cached;
   const machineNode = nodeById.get(machineId);
   if (!machineNode || machineNode.data.kind !== "machine") return 0;
   const machineData = machineNode.data as MachineNodeData;
-  const recipe = machineData.recipeId ? recipesById.get(machineData.recipeId) : undefined;
+
+  const forNode = nodeById.get(forItemNodeId);
+  const forData = forNode?.data.kind === "item" ? (forNode.data as ItemNodeData) : undefined;
+  const recipe = forData ? recipeForItem(machineData, recipesById, "output", forData.materialKind, forData.itemId) : undefined;
+
   const ownTime = recipe?.durationTicks
     ? parallelizedTicks(
         machineRuns(machineId, recipe, nodeById, edges),
@@ -105,17 +120,29 @@ function timeForMachine(
       )
     : 0;
 
-  // This machine can't start until its slowest input is ready.
+  // This machine can't start THIS recipe's run until ITS OWN inputs are ready - if a specific
+  // recipe was resolved above, only its own input edges count; an edge belonging to a different
+  // recipe attached to the same multiblock (a different hatch) runs independently and shouldn't
+  // gate this one. Falls back to every input edge when no recipe could be resolved (an unattached
+  // machine node), same as before this multi-recipe support existed.
   let inputsReadyBy = 0;
   for (const e of edges) {
     if (e.target !== machineId) continue;
     const inputNode = nodeById.get(e.source);
     if (!inputNode || inputNode.data.kind !== "item") continue;
-    inputsReadyBy = Math.max(inputsReadyBy, timeToProduce(inputNode.id, nodeById, edges, recipesById, machineTimeCache, visiting));
+    if (recipe) {
+      const inData = inputNode.data as ItemNodeData;
+      const isRecipeInput = recipe.inputs.some((io) => io.kind === inData.materialKind && io.ids.includes(inData.itemId));
+      if (!isRecipeInput) continue;
+    }
+    inputsReadyBy = Math.max(
+      inputsReadyBy,
+      timeToProduce(inputNode.id, nodeById, edges, recipesById, machineTimeCache, visiting),
+    );
   }
 
   const total = inputsReadyBy + ownTime;
-  machineTimeCache.set(machineId, total);
+  machineTimeCache.set(cacheKey, total);
   return total;
 }
 
@@ -151,9 +178,12 @@ const BOTTLENECK_FACTOR = 1.75;
 const MAX_BOTTLENECKS = 3;
 
 /** Up to 3 machines whose own processing time (parallelizedTicks - just that one step, not its
- * upstream dependencies) is a significant outlier against the rest of the chain's machines.
- * Ignores machines with no attached recipe/duration (nothing to compare) and reports nothing at
- * all with fewer than 2 comparable machines. */
+ * upstream dependencies) is a significant outlier against the rest of the chain's machines. A
+ * multiblock running several recipes at once via separate hatches (see lib/machineRecipes.ts)
+ * contributes one entry PER attached recipe, independently - they're separate hatch pairs with
+ * their own timing, not one blended figure for the whole node. Ignores machines with no attached
+ * recipe/duration (nothing to compare) and reports nothing at all with fewer than 2 comparable
+ * entries. */
 export function computeBottlenecks(nodes: FlowNode[], edges: Edge[], db: RecipeDatabase | undefined): MachineBottleneck[] {
   if (!db) return [];
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
@@ -163,14 +193,15 @@ export function computeBottlenecks(nodes: FlowNode[], edges: Edge[], db: RecipeD
   for (const n of nodes) {
     if (n.data.kind !== "machine") continue;
     const data = n.data as MachineNodeData;
-    const recipe = data.recipeId ? recipesById.get(data.recipeId) : undefined;
-    if (!recipe?.durationTicks) continue;
-    const ticks = parallelizedTicks(
-      machineRuns(n.id, recipe, nodeById, edges),
-      effectiveDurationTicks(recipe, data.tier, data.coilTier),
-      data.parallelCount,
-    );
-    entries.push({ machineId: n.id, label: data.label, tier: data.tier, ticks });
+    for (const recipe of machineRecipes(data, recipesById)) {
+      if (!recipe.durationTicks) continue;
+      const ticks = parallelizedTicks(
+        machineRuns(n.id, recipe, nodeById, edges),
+        effectiveDurationTicks(recipe, data.tier, data.coilTier),
+        data.parallelCount,
+      );
+      entries.push({ machineId: n.id, label: data.label, tier: data.tier, ticks });
+    }
   }
   if (entries.length < 2) return [];
 

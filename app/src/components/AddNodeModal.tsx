@@ -21,6 +21,28 @@ interface AddNodeModalProps {
   onAddNote: (text: string) => void;
 }
 
+// The 8 most common distinct fluid-input amounts (18mB and up - anything smaller is a trivial
+// edge case, not a realistic quick-pick) across every real recipe in the database - fluid amounts
+// run mB-scale (100s-1000s), nothing like the 1-256 item-count buttons the Amount field's
+// QuickAmountButtons otherwise defaults to, so the Fluid tab gets its own list instead, computed
+// straight from actual usage rather than guessed round numbers.
+const MIN_FLUID_QUICK_AMOUNT = 18;
+
+function commonFluidAmounts(db: RecipeDatabase): number[] {
+  const counts = new Map<number, number>();
+  for (const r of db.recipes) {
+    for (const io of r.inputs) {
+      if (io.kind !== "fluid" || io.amount < MIN_FLUID_QUICK_AMOUNT) continue;
+      counts.set(io.amount, (counts.get(io.amount) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([amount]) => amount)
+    .sort((a, b) => a - b);
+}
+
 export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }: AddNodeModalProps) {
   const preferredTier = useSettingsStore((s) => s.preferredTier);
   const [kind, setKind] = useState<AddNodeKind>("item");
@@ -49,6 +71,8 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
     }
     return ids;
   }, [db]);
+
+  const fluidQuickAmounts = useMemo(() => commonFluidAmounts(db), [db]);
 
   const options: PickerOption[] = useMemo(() => {
     if (kind !== "item" && kind !== "fluid") return [];
@@ -123,7 +147,7 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
               placeholder="e.g. 16"
             />
           </label>
-          <QuickAmountButtons onPick={(n) => setAmount(String(n))} />
+          <QuickAmountButtons onPick={(n) => setAmount(String(n))} amounts={kind === "fluid" ? fluidQuickAmounts : undefined} />
         </div>
       ) : kind === "machine" ? (
         <div className="add-node-form">

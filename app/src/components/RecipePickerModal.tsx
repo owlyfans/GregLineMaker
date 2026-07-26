@@ -22,6 +22,11 @@ interface RecipePickerModalProps {
   targetKind: "item" | "fluid";
   targetId: string;
   targetLabel: string;
+  /** Restricts the recipe list to just this machine type (e.g. "gtceu:macerator") - used when
+   * attaching a recipe to an already-placed machine node (see ChainView's machineAttachFor), so the
+   * picker can't offer a recipe belonging to a different machine than the one actually on canvas.
+   * Omitted/undefined for the normal unrestricted "Create from/into" flow. */
+  restrictToMachine?: string;
   favoriteRecipeIds?: Set<string>;
   onToggleFavorite?: (recipeId: string) => void;
   /** Recipes worth calling out because they'd consume a byproduct already flagged as a possible
@@ -42,6 +47,7 @@ export function RecipePickerModal({
   targetKind,
   targetId,
   targetLabel,
+  restrictToMachine,
   favoriteRecipeIds,
   onToggleFavorite,
   suggestedRecipeIds,
@@ -56,10 +62,12 @@ export function RecipePickerModal({
 
   const allMatching = useMemo(
     () =>
-      db.recipes.filter((r) =>
-        (direction === "from" ? r.outputs : r.inputs).some((io) => io.kind === targetKind && io.ids.includes(targetId)),
+      db.recipes.filter(
+        (r) =>
+          (!restrictToMachine || r.machine === restrictToMachine) &&
+          (direction === "from" ? r.outputs : r.inputs).some((io) => io.kind === targetKind && io.ids.includes(targetId)),
       ),
-    [db, direction, targetKind, targetId],
+    [db, direction, targetKind, targetId, restrictToMachine],
   );
 
   // Recipes needing a higher tier than the player's set "highest tier available" (see
@@ -135,9 +143,11 @@ export function RecipePickerModal({
     >
       {allMatching.length === 0 ? (
         <p className="modal-empty">
-          {direction === "from"
-            ? "No recipes in the database produce this item/fluid - it's a raw resource."
-            : "No recipes in the database consume this item/fluid."}
+          {restrictToMachine
+            ? `No ${humanizeMachine(restrictToMachine)} recipe uses this item/fluid.`
+            : direction === "from"
+              ? "No recipes in the database produce this item/fluid - it's a raw resource."
+              : "No recipes in the database consume this item/fluid."}
         </p>
       ) : matching.length === 0 ? (
         <p className="modal-empty">

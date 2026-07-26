@@ -1,9 +1,16 @@
-const QUICK_AMOUNTS = [1, 4, 8, 16, 32, 64, 128, 256];
+const DEFAULT_QUICK_AMOUNTS = [1, 4, 8, 16, 32, 64, 128, 256];
 
-export function QuickAmountButtons({ onPick }: { onPick: (value: number) => void }) {
+interface QuickAmountButtonsProps {
+  onPick: (value: number) => void;
+  /** Defaults to a plain item-count ladder (1-256) - AddNodeModal's Fluid tab passes its own list
+   * instead (mB-scale amounts computed from real recipe data, not item counts). */
+  amounts?: number[];
+}
+
+export function QuickAmountButtons({ onPick, amounts = DEFAULT_QUICK_AMOUNTS }: QuickAmountButtonsProps) {
   return (
     <div className="quick-amount-row">
-      {QUICK_AMOUNTS.map((n) => (
+      {amounts.map((n) => (
         <button
           key={n}
           type="button"
