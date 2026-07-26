@@ -35,11 +35,30 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
   const icons = useIconStore((s) => s.icons);
   const usesCoil = !!machineId && COIL_MACHINE_TYPES.has(machineId);
 
+  // Every fluid id that's actually consumed as an ingredient by some real recipe - a fluid that
+  // never shows up in any recipe's inputs is a dead end for chain-building (nothing to turn it
+  // into), so the Fluid tab's dropdown below filters down to just these instead of every fluid the
+  // game happens to register (the vast majority of which are unrelated to GTCEu processing at all).
+  const craftableFluidIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of db.recipes) {
+      for (const io of r.inputs) {
+        if (io.kind !== "fluid") continue;
+        for (const id of io.ids) ids.add(id);
+      }
+    }
+    return ids;
+  }, [db]);
+
   const options: PickerOption[] = useMemo(() => {
     if (kind !== "item" && kind !== "fluid") return [];
-    const map = kind === "fluid" ? db.fluids : db.items;
-    return Object.entries(map).map(([id, label]) => ({ id, label }));
-  }, [db, kind]);
+    if (kind === "fluid") {
+      return Object.entries(db.fluids)
+        .filter(([id]) => craftableFluidIds.has(id))
+        .map(([id, label]) => ({ id, label }));
+    }
+    return Object.entries(db.items).map(([id, label]) => ({ id, label }));
+  }, [db, kind, craftableFluidIds]);
 
   // Every distinct machine the recipe database actually knows about - picking from this (instead
   // of a free-text name) keeps a manually added machine node's label/icon tied to a real GTCEu
