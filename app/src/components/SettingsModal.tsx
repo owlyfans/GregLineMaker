@@ -1,3 +1,4 @@
+import { MODPACK_VERSIONS } from "../config";
 import { TIER_ORDER } from "../lib/gtTiers";
 import { useSettingsStore } from "../state/settingsStore";
 import { Modal } from "./Modal";
@@ -9,12 +10,32 @@ interface SettingsModalProps {
 export function SettingsModal({ onClose }: SettingsModalProps) {
   const maxTier = useSettingsStore((s) => s.maxTier);
   const preferredTier = useSettingsStore((s) => s.preferredTier);
+  const modpackVersion = useSettingsStore((s) => s.modpackVersion);
   const setMaxTier = useSettingsStore((s) => s.setMaxTier);
   const setPreferredTier = useSettingsStore((s) => s.setPreferredTier);
+  const setModpackVersion = useSettingsStore((s) => s.setModpackVersion);
 
   return (
     <Modal title="Settings" onClose={onClose} width={440}>
       <div className="add-node-form">
+        <label className="add-node-amount-label">
+          Modpack version
+          <select
+            className="add-node-amount-input"
+            value={modpackVersion}
+            onChange={(e) => setModpackVersion(e.target.value as (typeof MODPACK_VERSIONS)[number])}
+          >
+            {MODPACK_VERSIONS.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="settings-hint">
+          Which pack revision's recipes to load. Switching reloads the recipe database.
+        </p>
+
         <label className="add-node-amount-label">
           Highest tier available
           <select

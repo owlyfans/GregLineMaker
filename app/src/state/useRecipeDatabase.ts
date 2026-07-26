@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { RecipeDatabase } from "../types/recipe";
-import { RESOURCES_BASE_URL } from "../config";
+import { recipesUrl } from "../config";
+import { useSettingsStore } from "./settingsStore";
 
 interface State {
   db: RecipeDatabase | null;
@@ -17,13 +18,15 @@ interface State {
  * reported while it downloads - a file this size can take a real, noticeable amount of time on a
  * slow connection, and a bare "Loading..." with no sense of how much is left isn't very reassuring. */
 export function useRecipeDatabase(): State {
+  const modpackVersion = useSettingsStore((s) => s.modpackVersion);
   const [state, setState] = useState<State>({ db: null, loading: true, error: null, progress: null });
 
   useEffect(() => {
     let cancelled = false;
+    setState({ db: null, loading: true, error: null, progress: null });
 
     async function run() {
-      const res = await fetch(`${RESOURCES_BASE_URL}/recipes.json`);
+      const res = await fetch(recipesUrl(modpackVersion));
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 
       const totalStr = res.headers.get("content-length");
@@ -58,7 +61,7 @@ export function useRecipeDatabase(): State {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [modpackVersion]);
 
   return state;
 }

@@ -1,5 +1,5 @@
-// Turns the greglinedump mod's raw JSON dump into GregLineMaker's data/recipes.json.
-// Usage: npm run build   (from pipeline/), or `node build.mjs [instanceDir]`
+// Turns the greglinedump mod's raw JSON dump into GregLineMaker's data/<version>/recipes.json.
+// Usage: npm run build   (from pipeline/), or `node build.mjs [instanceDir] [modpackVersion]`
 import fs from "node:fs";
 import path from "node:path";
 import AdmZip from "adm-zip";
@@ -9,10 +9,15 @@ const INSTANCE_DIR =
   process.env.TFG_INSTANCE_DIR ||
   "C:/Users/owlyfans/AppData/Roaming/PrismLauncher/instances/TerraFirmaGreg-Modern/minecraft";
 
+// Which modpack revision this dump came from - recipes.json is versioned in data/ (and, once
+// synced, in resources/) since GTCEu/TFG recipes shift across pack updates while icons don't.
+// Keep in sync with app/src/config.ts's MODPACK_VERSIONS.
+const MODPACK_VERSION = process.argv[3] || process.env.GREGLINE_MODPACK_VERSION || "0.13.5";
+
 const DUMP_DIR = path.join(INSTANCE_DIR, "greglinedump");
 const MODS_DIR = path.join(INSTANCE_DIR, "mods");
 const KUBEJS_ASSETS_DIR = path.join(INSTANCE_DIR, "kubejs", "assets");
-const OUT_DIR = path.resolve(process.cwd(), "..", "data");
+const OUT_DIR = path.resolve(process.cwd(), "..", "data", MODPACK_VERSION);
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
