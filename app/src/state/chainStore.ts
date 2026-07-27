@@ -10,7 +10,7 @@ import {
   type NodeChange,
 } from "reactflow";
 import type { ChainNodeData, ItemNodeData, MachineNodeData, NoteNodeData } from "../types/chain";
-import type { Recipe } from "../types/recipe";
+import type { Recipe, RecipeIo } from "../types/recipe";
 import { humanizeMachine, isConfigItem, isToolItem } from "../solver/solve";
 import type { RefundPath } from "../solver/refund";
 import { machineRecipeIds } from "../lib/machineRecipes";
@@ -325,6 +325,10 @@ interface ChainStoreState {
     targetNodeId: string,
     recipe: Recipe,
     resolveName: (kind: "item" | "fluid", id: string) => string,
+    /** Which concrete id to use for an input slot that accepts several (e.g. "any sugar") -
+     * keyed by the RecipeIo object itself (stable across a single db load). Falls back to
+     * `ids[0]` for any slot not present here. */
+    altChoices?: Map<RecipeIo, string>,
   ) => void;
 
   /** Applies a suggested refund path: adds each hop's machine (+ its other inputs) and finally
@@ -344,6 +348,7 @@ interface ChainStoreState {
     fromNodeId: string,
     recipe: Recipe,
     resolveName: (kind: "item" | "fluid", id: string) => string,
+    altChoices?: Map<RecipeIo, string>,
   ) => void;
 
   /**
@@ -365,6 +370,7 @@ interface ChainStoreState {
     fromNodeId: string,
     recipe: Recipe,
     resolveName: (kind: "item" | "fluid", id: string) => string,
+    altChoices?: Map<RecipeIo, string>,
   ) => void;
 
   /**
@@ -761,7 +767,7 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
       set({ edges: [...get().edges, makeEdge(source, target)] });
     },
 
-    expandWithRecipe: (targetNodeId, recipe, resolveName) => {
+    expandWithRecipe: (targetNodeId, recipe, resolveName, altChoices) => {
       get().checkpoint();
       const targetNode = get().nodes.find((n) => n.id === targetNodeId);
     if (!targetNode || targetNode.data.kind !== "item") return;
@@ -817,7 +823,7 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
     const inputCount = recipe.inputs.filter((io) => !(io.kind === "item" && isConfigItem(io.ids[0]))).length;
     let inputIndex = 0;
     for (const io of recipe.inputs) {
-      const inputId = io.ids[0];
+      const inputId = altChoices?.get(io) ?? io.ids[0];
       if (io.kind === "item" && isConfigItem(inputId)) continue; // machine config, not a material
       const y = machinePos.y + (inputIndex - (inputCount - 1) / 2) * 90;
       inputIndex += 1;
@@ -859,7 +865,7 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
     set({ nodes: [...deselectAll(get().nodes), ...newNodes], edges: [...get().edges, ...newEdges] });
   },
 
-  expandForward: (fromNodeId, recipe, resolveName) => {
+  expandForward: (fromNodeId, recipe, resolveName, altChoices) => {
     get().checkpoint();
     const fromNode = get().nodes.find((n) => n.id === fromNodeId);
     if (!fromNode || fromNode.data.kind !== "item") return;
@@ -895,7 +901,7 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
 
     const otherInputs = recipe.inputs.filter((io) => io !== inputIo && !(io.kind === "item" && isConfigItem(io.ids[0])));
     otherInputs.forEach((io, i) => {
-      const inputId = io.ids[0];
+      const inputId = altChoices?.get(io) ?? io.ids[0];
       const y = machinePos.y + (i - (otherInputs.length - 1) / 2) * 90;
       const nodeId = newId(io.kind);
       const data: ItemNodeData = {
@@ -934,7 +940,7 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
     set({ nodes: [...deselectAll(get().nodes), ...newNodes], edges: [...get().edges, ...newEdges] });
   },
 
-  applyRecipeToMachine: (machineNodeId, fromNodeId, recipe, resolveName) => {
+  applyRecipeToMachine: (machineNodeId, fromNodeId, recipe, resolveName, altChoices) => {
     get().checkpoint();
     const snapshot = get().nodes;
     const machineNode = snapshot.find((n) => n.id === machineNodeId);
@@ -963,7 +969,7 @@ export const useChainStore = create<ChainStoreState>((set, get) => {
 
     const otherInputs = recipe.inputs.filter((io) => io !== inputIo && !(io.kind === "item" && isConfigItem(io.ids[0])));
     otherInputs.forEach((io, i) => {
-      const inputId = io.ids[0];
+      const inputId = altChoices?.get(io) ?? io.ids[0];
       const neededAmount = io.amount * multiplier;
       const y = machinePos.y + (i - (otherInputs.length - 1) / 2) * 90 - 140;
 

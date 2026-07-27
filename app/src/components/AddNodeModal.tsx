@@ -72,6 +72,26 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
     return ids;
   }, [db]);
 
+  // Item ids that show up in some recipe's inputs or outputs. Some imported item ids are
+  // duplicates of a "real" item under a different id with no recipes attached at all - sorting
+  // those to the bottom (instead of filtering outright, since a genuinely recipe-less raw
+  // material is still a valid chain endpoint) means the picker's default/tied-fuzzy-match order
+  // surfaces the recipe-bearing id first.
+  const itemsWithRecipeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of db.recipes) {
+      for (const io of r.inputs) {
+        if (io.kind !== "item") continue;
+        for (const id of io.ids) ids.add(id);
+      }
+      for (const io of r.outputs) {
+        if (io.kind !== "item") continue;
+        for (const id of io.ids) ids.add(id);
+      }
+    }
+    return ids;
+  }, [db]);
+
   const fluidQuickAmounts = useMemo(() => commonFluidAmounts(db), [db]);
 
   const options: PickerOption[] = useMemo(() => {
@@ -81,8 +101,10 @@ export function AddNodeModal({ db, onClose, onAddItem, onAddMachine, onAddNote }
         .filter(([id]) => craftableFluidIds.has(id))
         .map(([id, label]) => ({ id, label }));
     }
-    return Object.entries(db.items).map(([id, label]) => ({ id, label }));
-  }, [db, kind, craftableFluidIds]);
+    return Object.entries(db.items)
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => Number(itemsWithRecipeIds.has(b.id)) - Number(itemsWithRecipeIds.has(a.id)));
+  }, [db, kind, craftableFluidIds, itemsWithRecipeIds]);
 
   // Every distinct machine the recipe database actually knows about - picking from this (instead
   // of a free-text name) keeps a manually added machine node's label/icon tied to a real GTCEu

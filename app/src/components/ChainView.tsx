@@ -11,11 +11,11 @@ import ReactFlow, {
   type Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import type { Recipe, RecipeDatabase } from "../types/recipe";
+import type { Recipe, RecipeDatabase, RecipeIo } from "../types/recipe";
 import type { ChainNodeData, ItemNodeData, MachineNodeData } from "../types/chain";
 import { EDGE_COLOR_CHOICES, NODE_COLOR_CHOICES, useChainStore } from "../state/chainStore";
 import { useFavoritesStore } from "../state/favoritesStore";
-import { nodeKey } from "../solver/solve";
+import { isConfigItem, nodeKey } from "../solver/solve";
 import { buildInputIndex, detectActiveRefundLoops, findRefundPaths, type RefundPath } from "../solver/refund";
 import { formatDuration, parallelizedTicks } from "../lib/productionTime";
 import { machineHeatRequirement, recipeForItem } from "../lib/machineRecipes";
@@ -28,6 +28,7 @@ import { RecipePickerModal } from "./RecipePickerModal";
 import { EditNodeModal } from "./EditNodeModal";
 import { RefundSuggestionsModal } from "./RefundSuggestionsModal";
 import { AddNodeModal } from "./AddNodeModal";
+import { ChooseIngredientsModal } from "./ChooseIngredientsModal";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { EdgeColorToolbar } from "./EdgeColorToolbar";
@@ -89,6 +90,21 @@ function isTypingTarget(el: EventTarget | null): boolean {
 
 function resolveName(db: RecipeDatabase, kind: "item" | "fluid", id: string): string {
   return (kind === "fluid" ? db.fluids[id] : db.items[id]) ?? id;
+}
+
+/** Input slots (other than `excludeIo`, the one already pinned by whichever item node triggered
+ * this expansion) that accept more than one interchangeable id - a tag-resolved "any sugar"/"any
+ * dye" ingredient - and so need the user to pick one instead of silently defaulting to `ids[0]`. */
+function ambiguousInputsFor(recipe: Recipe, excludeIo: RecipeIo | undefined): RecipeIo[] {
+  return recipe.inputs.filter(
+    (io) => io !== excludeIo && io.ids.length > 1 && !(io.kind === "item" && isConfigItem(io.ids[0])),
+  );
+}
+
+interface PendingIngredientChoice {
+  recipe: Recipe;
+  ambiguousInputs: RecipeIo[];
+  run: (altChoices: Map<RecipeIo, string>) => void;
 }
 
 export function ChainView({ db }: { db: RecipeDatabase }) {
@@ -160,6 +176,7 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
   const [addNodeAt, setAddNodeAt] = useState<{ x: number; y: number } | null>(null);
   const [recipeModalFor, setRecipeModalFor] = useState<RecipeModalState | null>(null);
   const [machineAttachFor, setMachineAttachFor] = useState<MachineAttachState | null>(null);
+  const [pendingIngredientChoice, setPendingIngredientChoice] = useState<PendingIngredientChoice | null>(null);
   const [editingNode, setEditingNode] = useState<{ nodeId: string; data: ChainNodeData } | null>(null);
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
   const [refundSuggestionsFor, setRefundSuggestionsFor] = useState<{
@@ -713,14 +730,22 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
 
   function handleRecipePicked(recipe: Recipe) {
     if (!recipeModalFor) return;
-    const args: [string, Recipe, (kind: "item" | "fluid", id: string) => string] = [
-      recipeModalFor.nodeId,
-      recipe,
-      (kind, id) => resolveName(db, kind, id),
-    ];
-    if (recipeModalFor.direction === "from") expandWithRecipe(...args);
-    else expandForward(...args);
+    const { nodeId, data, direction } = recipeModalFor;
+    const excludeIo = direction === "into" ? recipe.inputs.find((io) => io.kind === data.materialKind && io.ids.includes(data.itemId)) : undefined;
+    const run = (altChoices?: Map<RecipeIo, string>) => {
+      const args: [string, Recipe, (kind: "item" | "fluid", id: string) => string, Map<RecipeIo, string>?] = [
+        nodeId,
+        recipe,
+        (kind, id) => resolveName(db, kind, id),
+        altChoices,
+      ];
+      if (direction === "from") expandWithRecipe(...args);
+      else expandForward(...args);
+    };
     setRecipeModalFor(null);
+    const ambiguousInputs = ambiguousInputsFor(recipe, excludeIo);
+    if (ambiguousInputs.length > 0) setPendingIngredientChoice({ recipe, ambiguousInputs, run });
+    else run();
   }
 
   return (
@@ -889,13 +914,27 @@ function ChainViewInner({ db }: { db: RecipeDatabase }) {
           restrictToMachine={machineAttachFor.restrictToMachine}
           onClose={() => setMachineAttachFor(null)}
           onPick={(recipe) => {
-            applyRecipeToMachine(
-              machineAttachFor.machineNodeId,
-              machineAttachFor.fromNodeId,
-              recipe,
-              (kind, id) => resolveName(db, kind, id),
-            );
+            const { machineNodeId, fromNodeId, data } = machineAttachFor;
+            const excludeIo = recipe.inputs.find((io) => io.kind === data.materialKind && io.ids.includes(data.itemId));
+            const run = (altChoices?: Map<RecipeIo, string>) =>
+              applyRecipeToMachine(machineNodeId, fromNodeId, recipe, (kind, id) => resolveName(db, kind, id), altChoices);
             setMachineAttachFor(null);
+            const ambiguousInputs = ambiguousInputsFor(recipe, excludeIo);
+            if (ambiguousInputs.length > 0) setPendingIngredientChoice({ recipe, ambiguousInputs, run });
+            else run();
+          }}
+        />
+      )}
+
+      {pendingIngredientChoice && (
+        <ChooseIngredientsModal
+          db={db}
+          recipe={pendingIngredientChoice.recipe}
+          ambiguousInputs={pendingIngredientChoice.ambiguousInputs}
+          onClose={() => setPendingIngredientChoice(null)}
+          onConfirm={(choices) => {
+            pendingIngredientChoice.run(choices);
+            setPendingIngredientChoice(null);
           }}
         />
       )}
